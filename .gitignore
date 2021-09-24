@@ -1,0 +1,9 @@
+.env
+slackbot
+init-go.sh
+.DS_Store
+scp.sh
+reddit.agent
+go.sum
+*.json
+files
