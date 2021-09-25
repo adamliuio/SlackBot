@@ -16,7 +16,7 @@ type Utils struct{}
 
 func (u Utils) GetItemById(formatStr string, id int) (item HNItem) {
 	var url string = fmt.Sprintf(formatStr, id)
-	var body []byte = u.RetrieveBytes(url)
+	var body []byte = u.RetrieveBytes(url, nil)
 
 	if err := json.Unmarshal(body, &item); err != nil {
 		log.Fatalln(err)
@@ -24,20 +24,29 @@ func (u Utils) GetItemById(formatStr string, id int) (item HNItem) {
 	return
 }
 
-func (u Utils) RetrieveBytes(url string) (body []byte) {
+func (u Utils) RetrieveBytes(url string, headers [][]string) (body []byte) {
+	var req *http.Request
 	var resp *http.Response
 	var err error
-	resp, err = http.Get(url)
-
+	req, err = http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		log.Panicln(err)
+		return
+	}
+	if len(headers) > 0 {
+		for _, header := range headers {
+			req.Header.Add(header[0], header[1])
+		}
+	}
+	client := &http.Client{}
+	resp, err = client.Do(req)
+	if err != nil {
+		return
 	}
 
 	body, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
 		log.Panicln(err)
 	}
-
 	return
 }
 

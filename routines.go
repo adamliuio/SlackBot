@@ -13,7 +13,7 @@ func (rou Routines) StartAll() {
 		for {
 			hn.RetrieveNew(os.Getenv("AutoHNLeaseScore")) // hacker news
 			// go rc.RetrieveNew()    // reddit
-			time.Sleep(6 * time.Hour)
+			time.Sleep(time.Hour)
 		}
 	}
 }

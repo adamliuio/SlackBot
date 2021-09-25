@@ -7,3 +7,4 @@ reddit.agent
 go.sum
 *.json
 files
+clientTwitter*

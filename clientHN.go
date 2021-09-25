@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"net/url"
@@ -46,41 +47,36 @@ func (hn HNClient) RetrieveNew(leastScoreStr string) (err error) {
 
 	fmt.Print(time.Now().Format("2006-01-02 15:04:05"), " : ", "Auto retrieving new Hacker news posts... ")
 
-	var retrivedStoriesIds []int
-	_ = json.Unmarshal(utils.ReadFile(hnFilename), &retrivedStoriesIds)
+	var savedStoriesIds []int
+	_ = json.Unmarshal(utils.ReadFile(hnFilename), &savedStoriesIds)
 
-	var storiesIdsList []int = hn.getStoriesIds(os.Getenv("AutoHNPostType")) // get 500 newest ids
+	var newIdsList []int
+	var _idsList []int = hn.getStoriesIds(os.Getenv("AutoHNPostType")) // get 500 newest ids
 
-	for {
-		var edit bool = false
-		for i, newId := range storiesIdsList {
-			for _, existId := range retrivedStoriesIds {
-				if newId == existId || i+1 == len(storiesIdsList) {
-					storiesIdsList = append(storiesIdsList[:i], storiesIdsList[i+1:]...)
-					edit = true
-					break
-				}
-			}
-			if edit {
+	for _, newId := range _idsList {
+		var exist bool = false
+		for _, existId := range savedStoriesIds {
+			if newId == existId {
+				exist = true
 				break
 			}
 		}
-		if !edit {
-			break
+		if !exist {
+			newIdsList = append(newIdsList, newId)
 		}
 	}
 
-	// turn storiesIdsList into batches because it's too long
-	var storiesLen int = len(storiesIdsList)
-	var storiesIdsListBatches [][]int
-	for i := 0; i < storiesLen/100; i++ { // turn storiesIdsList into batches
-		storiesIdsListBatches = append(storiesIdsListBatches, storiesIdsList[i*100:(i+1)*100])
+	// turn newIdsList into batches because it's too long
+	var storiesLen int = len(newIdsList)
+	var newIdsListBatches [][]int
+	for i := 0; i < storiesLen/100; i++ { // turn newIdsList into batches
+		newIdsListBatches = append(newIdsListBatches, newIdsList[i*100:(i+1)*100])
 	}
-	storiesIdsListBatches = append(storiesIdsListBatches, storiesIdsList[storiesLen-storiesLen%100:])
+	newIdsListBatches = append(newIdsListBatches, newIdsList[storiesLen-storiesLen%100:])
 
 	// get all the story items
 	var storiesItemsList []HNItem
-	for _, idsBatch := range storiesIdsListBatches {
+	for _, idsBatch := range newIdsListBatches {
 		storiesItemsList = append(storiesItemsList, hn.getStoriesItems(idsBatch)...)
 	}
 
@@ -98,29 +94,35 @@ func (hn HNClient) RetrieveNew(leastScoreStr string) (err error) {
 		}
 	}
 	if i < 1 {
-		fmt.Println("No qualified new post found.")
+		var txt string = fmt.Sprintf("No new HN post w/ score > %s found.", os.Getenv("AutoHNLeaseScore"))
+		fmt.Println(txt)
+		if flag.Lookup("test.v") == nil {
+			sc.SendPlainText(txt, os.Getenv("WebHookUrlTest"))
+		}
 		return
 	} else {
 		fmt.Printf("found %d stories. ", i)
 	}
-	storiesIdsList = []int{}
 	storiesItemsList = storiesItemsList[:i]
-	for i, item = range storiesItemsList {
-		storiesIdsList = append(storiesIdsList, item.Id)
-	}
 
 	// save json
-	retrivedStoriesIds = append(retrivedStoriesIds, storiesIdsList...)
-	j, _ := json.Marshal(retrivedStoriesIds)
+	for i, item = range storiesItemsList {
+		savedStoriesIds = append(savedStoriesIds, item.Id)
+	}
+	j, _ := json.Marshal(savedStoriesIds)
 	utils.WriteFile(j, hnFilename)
 
 	var mbs MessageBlocks
-	for i := 0; i < len(storiesIdsList); i++ {
+	for i := 0; i < len(storiesItemsList); i++ {
 		mbs, err = hn.hnStoriesToBlocks("", storiesItemsList[i:i+1], true)
 		if err != nil {
 			return
 		}
-		err = sc.SendBlocks(mbs, sc.WebHookUrlHN) // send the new and not published stories to slack #hacker-news
+		if flag.Lookup("test.v") == nil {
+			err = sc.SendBlocks(mbs, sc.WebHookUrlHN) // send the new and not published stories to slack #hacker-news
+		} else {
+			err = sc.SendBlocks(mbs, sc.WebHookUrlTest)
+		}
 	}
 	fmt.Println("Sent.")
 	return
@@ -153,8 +155,8 @@ func (hn HNClient) getStories(storyType string, storiesRange []int) (storiesItem
 		err = fmt.Errorf(`the <story type> "%s" you put in is invalid, should be one if <top/new/best>`, storyType)
 		return
 	}
-	var storiesIdsList []int = hn.getStoriesIds(storyType)
-	storiesItemsList = hn.getStoriesItems(storiesIdsList)
+	var newIdsList []int = hn.getStoriesIds(storyType)
+	storiesItemsList = hn.getStoriesItems(newIdsList)
 	sort.Slice(storiesItemsList, func(i, j int) bool {
 		return storiesItemsList[i].Score > storiesItemsList[j].Score
 	})
@@ -170,7 +172,7 @@ func (hn HNClient) hnStoriesToBlocks(storyTypeInfo string, stories []HNItem, use
 	}
 	for _, story = range stories {
 		var text string = fmt.Sprintf(
-			"*<%s|%s>*\n[<%s|hn>] Score: %d, Comments: %d  @%s [%s]",
+			"*<%s|%s>*\n[<%s|hn>] Score: %d, Comments: %d\n@%s [%s]",
 			story.Url, story.Title, fmt.Sprintf(hn.PageUrlTmplt, story.Id), story.Score, len(story.Kids), hn.parseHostname(story.Url), utils.ConvertUnixTime(story.Time),
 		)
 		if useDivider {
@@ -191,14 +193,14 @@ func (hn HNClient) parseHostname(hostname string) string {
 	return strings.ReplaceAll(u.Hostname(), "www.", "")
 }
 
-func (hn HNClient) getStoriesItems(storiesIdsList []int) (storiesItemsList []HNItem) {
+func (hn HNClient) getStoriesItems(newIdsList []int) (storiesItemsList []HNItem) {
 	var m sync.Map
 	storiesItemsList = []HNItem{}
 
 	// start := time.Now()
 	defer func() { // turn m sync.Map into storiesItemsList after the process is done
 		// log.Println("Execution Time: ", time.Since(start))
-		for _, id := range storiesIdsList {
+		for _, id := range newIdsList {
 			var item HNItem
 			var itemIntf interface{}
 			var ok bool
@@ -221,7 +223,7 @@ func (hn HNClient) getStoriesItems(storiesIdsList []int) (storiesItemsList []HNI
 
 	// starting concurrent processes that retrieve hn news items simultaneously
 	wg := sync.WaitGroup{}
-	for _, id := range storiesIdsList {
+	for _, id := range newIdsList {
 		wg.Add(1)
 		go func(id int) {
 			var hn HNItem = utils.GetItemById(hn.ItemUrlTmplt, id)
@@ -233,12 +235,12 @@ func (hn HNClient) getStoriesItems(storiesIdsList []int) (storiesItemsList []HNI
 	return
 }
 
-func (hn HNClient) getStoriesIds(storyType string) (storiesIdsList []int) {
+func (hn HNClient) getStoriesIds(storyType string) (newIdsList []int) {
 	// top [500], new [500], best [200]
 	var url string = fmt.Sprintf(hn.StoriesUrlTmplt, storyType)
-	var body []byte = utils.RetrieveBytes(url)
+	var body []byte = utils.RetrieveBytes(url, nil)
 
-	if err := json.Unmarshal(body, &storiesIdsList); err != nil {
+	if err := json.Unmarshal(body, &newIdsList); err != nil {
 		log.Fatalln(err)
 	}
 	return

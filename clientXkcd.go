@@ -26,7 +26,7 @@ type xkcdJSON struct {
 
 func (xk XKCDClient) RetrieveJsonById(id int) (xkj xkcdJSON, err error) {
 	var fStr string = "https://xkcd.com/%d/info.0.json"
-	var body []byte = utils.RetrieveBytes(fmt.Sprintf(fStr, id))
+	var body []byte = utils.RetrieveBytes(fmt.Sprintf(fStr, id), nil)
 	err = json.Unmarshal(body, &xkj)
 	if err != nil {
 		return
