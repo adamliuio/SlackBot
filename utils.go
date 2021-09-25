@@ -19,7 +19,7 @@ func (u Utils) GetItemById(formatStr string, id int) (item HNItem) {
 	var body []byte = u.RetrieveBytes(url, nil)
 
 	if err := json.Unmarshal(body, &item); err != nil {
-		log.Fatalln(err)
+		log.Panic(err)
 	}
 	return
 }
@@ -45,7 +45,7 @@ func (u Utils) RetrieveBytes(url string, headers [][]string) (body []byte) {
 
 	body, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Panicln(err)
+		log.Panic(err)
 	}
 	return
 }

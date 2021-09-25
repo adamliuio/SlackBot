@@ -4,9 +4,12 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"os"
+	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/turnage/graw/reddit"
@@ -52,9 +55,19 @@ func (rc RedditClient) RetrieveNew() {
 }
 
 func (rc RedditClient) sendPosts(sendType string, posts []*reddit.Post) {
+
+	// sort "posts" base on scores
+	sort.Slice(posts, func(i, j int) bool {
+		return posts[i].Ups > posts[j].Ups
+	})
+
 	var post *reddit.Post
 	var mbarr []MessageBlock
 	for _, post = range posts {
+		leastScore, _ := strconv.Atoi(os.Getenv("AutoRedditLeaseScore"))
+		if post.Ups < int32(leastScore) {
+			break
+		}
 		var exist bool = false
 		if sendType == "new" {
 			for _, existID := range rc.retrivedStoriesIds {
@@ -80,7 +93,12 @@ func (rc RedditClient) sendPosts(sendType string, posts []*reddit.Post) {
 		}
 
 		var mbs = MessageBlocks{Blocks: mbarr}
-		err := sc.SendBlocks(mbs, rc.WebHookUrlReddit)
+		var err error
+		if flag.Lookup("test.v") == nil && Hostname != "MacBook-Pro.local" {
+			err = sc.SendBlocks(mbs, rc.WebHookUrlReddit) // send the new and not published stories to slack #hacker-news
+		} else {
+			err = sc.SendBlocks(mbs, sc.WebHookUrlTest)
+		}
 		if err != nil {
 			log.Panic(err)
 		}
@@ -102,10 +120,8 @@ func (rc RedditClient) createVideoMsgBlock(post *reddit.Post) (mbs []MessageBloc
 	}
 
 	mbs = []MessageBlock{
-		MessageBlock{
-			Type: "divider",
-		},
-		MessageBlock{ // video
+		{Type: "divider"},
+		{ // video
 			Type: "section",
 			Text: &ElementText{
 				Type: "mrkdwn",
@@ -123,17 +139,15 @@ func (rc RedditClient) createVideoMsgBlock(post *reddit.Post) (mbs []MessageBloc
 
 func (rc RedditClient) createImageMsgBlock(post *reddit.Post) (mbs []MessageBlock) {
 	mbs = []MessageBlock{
-		MessageBlock{
-			Type: "divider",
-		},
-		MessageBlock{
+		{Type: "divider"},
+		{
 			Type: "section",
 			Text: &ElementText{
 				Text: fmt.Sprintf("%s\nups: *%d*, sub: *r/%s* <image>", post.Title, post.Ups, post.Subreddit),
 				Type: "mrkdwn",
 			},
 		},
-		MessageBlock{ // image
+		{ // image
 			Type:     "image",
 			ImageUrl: post.URL,
 			AltText:  post.Title,
@@ -150,10 +164,8 @@ func (rc RedditClient) createTextMsgBlock(post *reddit.Post) (mbs []MessageBlock
 		text = fmt.Sprintf("*<%s|%s>*\n[<https://reddit.com%s|Reddit>] ups:*%d*, sub: *r/%s*<link>", post.URL, post.Title, post.Permalink, post.Ups, post.Subreddit)
 	}
 	mbs = []MessageBlock{
-		MessageBlock{
-			Type: "divider",
-		},
-		MessageBlock{ // text
+		{Type: "divider"},
+		{ // text
 			Type: "section",
 			Text: &ElementText{
 				Type: "mrkdwn",

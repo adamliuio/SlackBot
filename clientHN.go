@@ -41,17 +41,27 @@ type HNItem struct {
 const hnFilename string = "ids-hn.json"
 
 func (hn HNClient) RetrieveNew(leastScoreStr string) (err error) {
+	for _, s := range []string{"top", "new", "best"} {
+		err = hn._retrieveNew(leastScoreStr, s)
+		if err != nil {
+			return
+		}
+	}
+	return
+}
+
+func (hn HNClient) _retrieveNew(leastScoreStr, autoHNPostType string) (err error) {
 
 	var leastScore int
 	leastScore, err = strconv.Atoi(leastScoreStr)
 
-	fmt.Print(time.Now().Format("2006-01-02 15:04:05"), " : ", "Auto retrieving new Hacker news posts... ")
+	fmt.Print(time.Now().Format("2006-01-02 15:04:05"), " : ", "Auto retrieving ", autoHNPostType, " Hacker news posts... ")
 
 	var savedStoriesIds []int
 	_ = json.Unmarshal(utils.ReadFile(hnFilename), &savedStoriesIds)
 
 	var newIdsList []int
-	var _idsList []int = hn.getStoriesIds(os.Getenv("AutoHNPostType")) // get 500 newest ids
+	var _idsList []int = hn.getStoriesIds(autoHNPostType) // get 500 newest ids
 
 	for _, newId := range _idsList {
 		var exist bool = false
@@ -118,7 +128,7 @@ func (hn HNClient) RetrieveNew(leastScoreStr string) (err error) {
 		if err != nil {
 			return
 		}
-		if flag.Lookup("test.v") == nil {
+		if flag.Lookup("test.v") == nil && Hostname != "MacBook-Pro.local" {
 			err = sc.SendBlocks(mbs, sc.WebHookUrlHN) // send the new and not published stories to slack #hacker-news
 		} else {
 			err = sc.SendBlocks(mbs, sc.WebHookUrlTest)

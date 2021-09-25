@@ -69,22 +69,18 @@ type ActionClient struct{}
 func (bc ActionClient) SendButton() (messageBlocks MessageBlocks) {
 
 	messageBlocks = MessageBlocks{
-		Blocks: []MessageBlock{
-			MessageBlock{
-				Type: "actions",
-				Elements: []Element{
-					Element{
-						Type: "button",
-						Text: ElementText{
-							Type: "plain_text",
-							Text: "Click Me",
-						},
-						Value:    "click_me_123",
-						ActionId: "actionId-0",
-					},
+		Blocks: []MessageBlock{{
+			Type: "actions",
+			Elements: []Element{{
+				Type: "button",
+				Text: ElementText{
+					Type: "plain_text",
+					Text: "Click Me",
 				},
-			},
-		},
+				Value:    "click_me_123",
+				ActionId: "actionId-0",
+			}},
+		}},
 	}
 
 	return

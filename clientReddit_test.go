@@ -28,6 +28,10 @@ func TestFiling(t *testing.T) {
 	utils.DownloadFile("https://v.redd.it/2l3jn69r5jo71/DASH_1080.mp4?source=fallback", "ok.mp4", false)
 }
 
+func TestRCRetrieveNew(t *testing.T) {
+	rc.RetrieveNew()
+}
+
 func TestHostname(t *testing.T) {
 	hostname, err := os.Hostname()
 	if err == nil {

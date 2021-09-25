@@ -3,24 +3,17 @@ package main
 import (
 	"encoding/json"
 	"log"
+	"net/http"
 	"testing"
+	"time"
 )
 
-// func TestCommandCommands(t *testing.T) {
-// 	var msgBlocks MessageBlocks = mw.CommandCommands()
-
-// 	b, err := json.MarshalIndent(msgBlocks, "", "    ")
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// 	log.Printf("%+v\n", string(b))
-
-// 	err = sc.SendBlocks(msgBlocks, sc.WebHookUrlTest)
-// 	if err != nil {
-// 		log.Fatalln(err)
-// 	}
-// 	log.Printf("%+v\n", msgBlocks)
-// }
+func TestShortcuts(t *testing.T) {
+	go server()
+	time.Sleep(3 * time.Second)
+	http.Get("http://127.0.0.1:8080/shortcuts")
+	time.Sleep(3 * time.Second)
+}
 
 func TestCommandHn(t *testing.T) {
 	msgBlocks, err := hn.GetHNStories("top 10-20")

@@ -11,6 +11,7 @@ import (
 type Middlewares struct{}
 
 func (mw Middlewares) Shortcuts(c *fiber.Ctx) error {
+	log.Println("incoming")
 
 	type T struct {
 		Payload string `json:"payload,omitempty"`
@@ -29,7 +30,7 @@ func (mw Middlewares) Shortcuts(c *fiber.Ctx) error {
 
 	var msgBlocks = MessageBlocks{
 		Blocks: []MessageBlock{
-			MessageBlock{
+			{
 				Type: "section",
 				Text: &ElementText{
 					Type: "mrkdwn",

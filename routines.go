@@ -12,7 +12,7 @@ func (rou Routines) StartAll() {
 	if flag.Lookup("test.v") == nil { // if this is not in test mode
 		for {
 			hn.RetrieveNew(os.Getenv("AutoHNLeaseScore")) // hacker news
-			// go rc.RetrieveNew()    // reddit
+			go rc.RetrieveNew()                           // reddit
 			time.Sleep(time.Hour)
 		}
 	}
