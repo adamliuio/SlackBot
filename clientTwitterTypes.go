@@ -23,11 +23,21 @@ type TweetData struct {
 type TweetAttachments struct {
 	Media_Keys []string `json:"media_keys,omitempty"`
 }
+
 type TweetEntities struct {
 	Urls             []TweetUrl        `json:"urls,omitempty"`
 	TweetAnnotations []TweetAnnotation `json:"annotations,omitempty"`
 	Description      []Hashtag         `json:"description,omitempty"`
 	Url              TwitterUserUrls   `json:"url,omitempty"`
+	Hashtags         []Hashtag         `json:"hashtags,omitempty"`
+	User_Mentions    []UserMention     `json:"user_mentions,omitempty"`
+}
+
+type UserMention struct {
+	Screen_Name string `json:"screen_name,omitempty"`
+	Name        string `json:"name,omitempty"`
+	Id_Str      string `json:"id_str,omitempty"`
+	Indices     []int  `json:"indices,omitempty"`
 }
 
 type TwitterUserUrls struct {
@@ -48,9 +58,11 @@ type TwitterUserUrls struct {
 // 	}
 
 type Hashtag struct {
-	Start int    `json:"start,omitempty"`
-	End   int    `json:"end,omitempty"`
-	Tag   string `json:"tag,omitempty"`
+	Start   int    `json:"start,omitempty"`
+	End     int    `json:"end,omitempty"`
+	Tag     string `json:"tag,omitempty"`
+	Text    string `json:"text,omitempty"`
+	Indices []int  `json:"indices,omitempty"`
 }
 
 type TweetUrl struct {
@@ -124,4 +136,21 @@ type UserData struct {
 
 type UserDataIncludes struct {
 	Tweets []TweetData `json:"includes,omitempty"`
+}
+
+type ListTweet struct {
+	Created_At       string        `json:"created_at,omitempty"`
+	Id_Str           string        `json:"id_str,omitempty"`
+	Text             string        `json:"text,omitempty"`
+	Retweet_Count    int           `json:"retweet_count,omitempty"`
+	Favorite_Count   int           `json:"favorite_count,omitempty"`
+	User             ListTweetUser `json:"user,omitempty"`
+	Retweeted_Status *ListTweet    `json:"retweeted_status,omitempty"`
+	Entities         TweetEntities `json:"entities,omitempty"`
+}
+
+type ListTweetUser struct {
+	Id_Str      string `json:"id_str,omitempty"`
+	Name        string `json:"name,omitempty"`
+	Screen_Name string `json:"screen_name,omitempty"`
 }

@@ -8,8 +8,9 @@ import (
 )
 
 var (
-	sc SlackClient
 	rc RedditClient
+	sc SlackClient
+	tc TwitterClient
 	// xk XKCDClient
 	hn = HNClient{
 		ItemUrlTmplt:    "https://hacker-news.firebaseio.com/v0/item/%d.json",                // "https://hacker-news.firebaseio.com/v0/item/8863.json?print=pretty"

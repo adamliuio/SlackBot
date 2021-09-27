@@ -111,9 +111,9 @@ func (sc SlackClient) sendText(messageBlocks MessageBlocks, url string) (err err
 	return sc.SendBlocks(messageBlocks, url)
 }
 
-func (sc SlackClient) SendBlocks(messageBlocks MessageBlocks, url string) (err error) {
+func (sc SlackClient) SendBlocks(msgBlocks MessageBlocks, url string) (err error) {
 	var reqBody []byte
-	reqBody, err = json.MarshalIndent(messageBlocks, "", "    ")
+	reqBody, err = json.MarshalIndent(msgBlocks, "", "    ")
 	if err != nil {
 		return
 	}

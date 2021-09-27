@@ -65,7 +65,7 @@ func (mw Middlewares) Events(c *fiber.Ctx) error {
 	return c.SendString(cha["challenge"])
 }
 
-func (mw Middlewares) Commands(c *fiber.Ctx) error { // use "/commands" to trigger this
+func (mw Middlewares) Commands(c *fiber.Ctx) error {
 	cmd := new(SlashCommand)
 	if err := c.BodyParser(cmd); err != nil {
 		return err
@@ -73,10 +73,12 @@ func (mw Middlewares) Commands(c *fiber.Ctx) error { // use "/commands" to trigg
 	// log.Printf("cmd: %+v\n", cmd)
 
 	switch cmd.Command {
-	case "/commands":
+	case "/commands": // use "/commands" to trigger this
 		return c.JSON(mw.commandCommands())
 	case "/hn":
 		return c.JSON(mw.commandHn(cmd))
+	case "/twt":
+		return c.JSON(mw.commandTwitter(cmd))
 	default:
 		fmt.Printf("%s.\n", cmd.Command)
 	}
@@ -91,7 +93,16 @@ func (mw Middlewares) commandCommands() MessageBlocks { // use "/commands" to tr
 
 func (mw Middlewares) commandHn(cmd *SlashCommand) (msgBlocks MessageBlocks) { // use "/hn top 10" to trigger this
 	var err error
-	msgBlocks, err = hn.GetHNStories(cmd.Text)
+	msgBlocks, err = hn.RetrieveByCommand(cmd.Text)
+	if err != nil {
+		log.Println(err)
+	}
+	return msgBlocks
+}
+
+func (mw Middlewares) commandTwitter(cmd *SlashCommand) (msgBlocks MessageBlocks) { // use "/hn top 10" to trigger this
+	var err error
+	msgBlocks, err = tc.RetrieveByCommand(cmd.Text)
 	if err != nil {
 		log.Println(err)
 	}

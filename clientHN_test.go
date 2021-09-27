@@ -9,7 +9,7 @@ import (
 )
 
 func TestRetrieveNew(t *testing.T) {
-	hn.RetrieveNew("500")
+	hn.RetrieveNew()
 }
 
 const f string = "ids-reddit.json"

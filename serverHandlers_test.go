@@ -20,7 +20,7 @@ func TestShortcuts(t *testing.T) {
 }
 
 func TestCommandHn(t *testing.T) {
-	msgBlocks, err := hn.GetHNStories("top 10-20")
+	msgBlocks, err := hn.RetrieveByCommand("top 10-20")
 	if err != nil {
 		log.Println(err)
 	}

@@ -40,10 +40,10 @@ type HNItem struct {
 
 const hnFilename string = "ids-hn.json"
 
-func (hn HNClient) RetrieveNew(leastScoreStr string) (err error) {
+func (hn HNClient) RetrieveNew() (err error) {
 	fmt.Println(time.Now().Format("2006-01-02 15:04:05"), " : ", "Auto retrieving Hacker news posts... ")
 	for _, s := range []string{"top", "new", "best"} {
-		err = hn._retrieveNew(leastScoreStr, s)
+		err = hn._retrieveNew(s)
 		if err != nil {
 			return
 		}
@@ -51,10 +51,10 @@ func (hn HNClient) RetrieveNew(leastScoreStr string) (err error) {
 	return
 }
 
-func (hn HNClient) _retrieveNew(leastScoreStr, autoHNPostType string) (err error) {
+func (hn HNClient) _retrieveNew(autoHNPostType string) (err error) {
 
 	var leastScore int
-	leastScore, err = strconv.Atoi(leastScoreStr)
+	leastScore, err = strconv.Atoi(os.Getenv("AutoHNLeaseScore"))
 
 	var savedStoriesIds []int
 	_ = json.Unmarshal(utils.ReadFile(hnFilename), &savedStoriesIds)
@@ -133,7 +133,7 @@ func (hn HNClient) _retrieveNew(leastScoreStr, autoHNPostType string) (err error
 	return
 }
 
-func (hn HNClient) GetHNStories(storyTypeInfo string) (msgBlocks MessageBlocks, err error) {
+func (hn HNClient) RetrieveByCommand(storyTypeInfo string) (msgBlocks MessageBlocks, err error) {
 
 	var storyType string
 	var storiesRange []int
