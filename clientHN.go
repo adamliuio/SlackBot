@@ -41,6 +41,7 @@ type HNItem struct {
 const hnFilename string = "ids-hn.json"
 
 func (hn HNClient) RetrieveNew(leastScoreStr string) (err error) {
+	fmt.Println(time.Now().Format("2006-01-02 15:04:05"), " : ", "Auto retrieving Hacker news posts... ")
 	for _, s := range []string{"top", "new", "best"} {
 		err = hn._retrieveNew(leastScoreStr, s)
 		if err != nil {
@@ -54,8 +55,6 @@ func (hn HNClient) _retrieveNew(leastScoreStr, autoHNPostType string) (err error
 
 	var leastScore int
 	leastScore, err = strconv.Atoi(leastScoreStr)
-
-	fmt.Print(time.Now().Format("2006-01-02 15:04:05"), " : ", "Auto retrieving ", autoHNPostType, " Hacker news posts... ")
 
 	var savedStoriesIds []int
 	_ = json.Unmarshal(utils.ReadFile(hnFilename), &savedStoriesIds)
@@ -104,14 +103,10 @@ func (hn HNClient) _retrieveNew(leastScoreStr, autoHNPostType string) (err error
 		}
 	}
 	if i < 1 {
-		var txt string = fmt.Sprintf("No new HN post w/ score > %s found.", os.Getenv("AutoHNLeaseScore"))
-		fmt.Println(txt)
-		if flag.Lookup("test.v") == nil {
-			sc.SendPlainText(txt, os.Getenv("WebHookUrlTest"))
-		}
+		fmt.Printf("No new HN %s post w/ score > %s found.\n", autoHNPostType, os.Getenv("AutoHNLeaseScore"))
 		return
 	} else {
-		fmt.Printf("found %d stories. ", i)
+		fmt.Printf("found %d %s HN stories.\n", i, autoHNPostType)
 	}
 	storiesItemsList = storiesItemsList[:i]
 

@@ -10,6 +10,13 @@ import (
 
 type Middlewares struct{}
 
+func (mw Middlewares) Home(c *fiber.Ctx) error {
+	log.Println(string(c.Request().URI().QueryString()))
+	var incomingData []byte = c.Body()
+	log.Printf("c.Body(): %+v\n\n", string(incomingData))
+	return c.SendString("Hello, World 👋!")
+}
+
 func (mw Middlewares) Shortcuts(c *fiber.Ctx) error {
 	log.Println("incoming")
 

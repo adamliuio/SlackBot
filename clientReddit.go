@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/turnage/graw/reddit"
 )
@@ -37,72 +38,79 @@ func (rc RedditClient) Graw() (harvest reddit.Harvest) {
 	if err != nil {
 		log.Fatalln("Failed to fetch /r/golang: ", err)
 	}
-	// var mbs = MessageBlocks{Blocks: rc.sendPosts(harvest)}
-	// _ = mbs
-	// err = sc.SendBlocks(mbs, sc.WebHookUrlTest)
-
 	return
 }
 
-func (rc RedditClient) GetRedditStories() {
+func (rc RedditClient) RetrieveNew() (err error) {
+	fmt.Print(time.Now().Format("2006-01-02 15:04:05"), " : ", "Auto retrieving new Reddit posts... ")
 	var harvest reddit.Harvest = rc.Graw()
-	rc.sendPosts("all", harvest.Posts)
+	err = rc.sendPosts(harvest.Posts)
+	return
 }
 
-func (rc RedditClient) RetrieveNew() {
-	var harvest reddit.Harvest = rc.Graw()
-	rc.sendPosts("new", harvest.Posts)
-}
-
-func (rc RedditClient) sendPosts(sendType string, posts []*reddit.Post) {
+func (rc RedditClient) sendPosts(posts []*reddit.Post) (err error) {
 
 	// sort "posts" base on scores
 	sort.Slice(posts, func(i, j int) bool {
 		return posts[i].Ups > posts[j].Ups
 	})
 
+	var i int
 	var post *reddit.Post
-	var mbarr []MessageBlock
-	for _, post = range posts {
-		leastScore, _ := strconv.Atoi(os.Getenv("AutoRedditLeaseScore"))
-		if post.Ups < int32(leastScore) {
+	var leastScore int
+	leastScore, err = strconv.Atoi(os.Getenv("AutoRedditLeaseScore"))
+	if err != nil {
+		return
+	}
+	for i, post = range posts {
+		if i < leastScore { // filter out qualified posts
 			break
 		}
-		var exist bool = false
-		if sendType == "new" {
-			for _, existID := range rc.retrivedStoriesIds {
-				if post.ID == existID {
-					exist = true
-					break
-				}
-			}
-			if exist {
-				break
-			} else {
-				rc.retrivedStoriesIds = append(rc.retrivedStoriesIds, post.ID)
-				file, _ := json.Marshal(rc.retrivedStoriesIds)
-				utils.WriteFile(file, redditFilename)
-			}
-		}
-		if strings.Contains(post.URL, "v.redd.it") { // video
-			mbarr = rc.createVideoMsgBlock(post)
-		} else if strings.Contains(post.URL, "i.redd.it") { // image
-			mbarr = rc.createImageMsgBlock(post)
-		} else { // post/link
-			mbarr = rc.createTextMsgBlock(post)
-		}
+	}
+	if i < 1 {
+		fmt.Println("No new post from Reddit!")
+		return
+	} else {
+		fmt.Println(time.Now().Format("2006-01-02 15:04:05"), " : ", "Auto retrieving Hacker news posts... ")
+		fmt.Printf("found %d Reddit stories.\n", i)
+	}
 
-		var mbs = MessageBlocks{Blocks: mbarr}
-		var err error
-		if flag.Lookup("test.v") == nil && Hostname != "MacBook-Pro.local" {
-			err = sc.SendBlocks(mbs, rc.WebHookUrlReddit) // send the new and not published stories to slack #hacker-news
-		} else {
-			err = sc.SendBlocks(mbs, sc.WebHookUrlTest)
+	var mbarr []MessageBlock
+	for _, post = range posts[:i] {
+		var exist bool = false
+		for _, existID := range rc.retrivedStoriesIds {
+			if post.ID == existID {
+				exist = true
+				break
+			}
 		}
-		if err != nil {
-			log.Panic(err)
+		if exist {
+			continue
+		} else { // send post
+			rc.retrivedStoriesIds = append(rc.retrivedStoriesIds, post.ID) // add new post id to existing ones
+			if strings.Contains(post.URL, "v.redd.it") {                   // video
+				mbarr = rc.createVideoMsgBlock(post)
+			} else if strings.Contains(post.URL, "i.redd.it") { // image
+				mbarr = rc.createImageMsgBlock(post)
+			} else { // post/link
+				mbarr = rc.createTextMsgBlock(post)
+			}
+
+			var mbs = MessageBlocks{Blocks: mbarr}
+			if flag.Lookup("test.v") == nil && Hostname != "MacBook-Pro.local" {
+				err = sc.SendBlocks(mbs, rc.WebHookUrlReddit) // send the new and not published stories to slack #hacker-news
+			} else {
+				err = sc.SendBlocks(mbs, sc.WebHookUrlTest)
+			}
+			if err != nil {
+				return
+			}
 		}
 	}
+
+	file, _ := json.Marshal(rc.retrivedStoriesIds)
+	utils.WriteFile(file, redditFilename)
+	return
 }
 
 func (rc RedditClient) createVideoMsgBlock(post *reddit.Post) (mbs []MessageBlock) {
@@ -159,7 +167,7 @@ func (rc RedditClient) createImageMsgBlock(post *reddit.Post) (mbs []MessageBloc
 func (rc RedditClient) createTextMsgBlock(post *reddit.Post) (mbs []MessageBlock) {
 	var text string
 	if strings.Contains(post.URL, post.Permalink) { // meaning this is a reddit post not news link
-		text = fmt.Sprintf("*<https://reddit.com%s|%s>*\nups:*%d*, sub: *r/%s* <post>", post.Permalink, post.Title, post.Ups, post.Subreddit)
+		text = fmt.Sprintf("*[%s] <https://reddit.com%s|%s>*\nups:*%d*, sub: *r/%s* <post>", post.ID, post.Permalink, post.Title, post.Ups, post.Subreddit)
 	} else {
 		text = fmt.Sprintf("*<%s|%s>*\n[<https://reddit.com%s|Reddit>] ups:*%d*, sub: *r/%s*<link>", post.URL, post.Title, post.Permalink, post.Ups, post.Subreddit)
 	}

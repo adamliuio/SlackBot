@@ -8,6 +8,10 @@ import (
 	"time"
 )
 
+func TestServer(t *testing.T) {
+	server()
+}
+
 func TestShortcuts(t *testing.T) {
 	go server()
 	time.Sleep(3 * time.Second)

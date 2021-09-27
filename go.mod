@@ -6,4 +6,6 @@ require (
 	github.com/gofiber/fiber/v2 v2.19.0
 	github.com/joho/godotenv v1.4.0
 	github.com/turnage/graw v0.0.0-20201204201853-a177df1b5c91
+	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f
+	google.golang.org/api v0.57.0
 )

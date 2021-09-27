@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"os"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
@@ -9,8 +10,7 @@ import (
 )
 
 var (
-	PORT string = ":8080"
-	mw   Middlewares
+	mw Middlewares
 )
 
 func init() {
@@ -18,11 +18,10 @@ func init() {
 }
 
 func server() {
-	// http://172.105.117.237:8080/slack/events
 	app := fiber.New()
 	app.Use(logger.New())
 
-	app.Get("/", func(c *fiber.Ctx) error { return c.SendString("Hello, World 👋!") })
+	app.Get("/", mw.Home)
 	app.Post("/", func(c *fiber.Ctx) error { return c.SendString("Hello, World 👋!") })
 	app.Post("/ping", mw.Ping)
 
@@ -41,5 +40,5 @@ func server() {
 		}))
 	}
 
-	app.Listen(PORT)
+	app.Listen(os.Getenv("ServerListenPort"))
 }
