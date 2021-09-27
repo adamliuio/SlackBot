@@ -7,5 +7,5 @@ reddit.agent
 go.sum
 *.json
 files
-clientTwitter*
 gmail-credentials.json
+data-samples

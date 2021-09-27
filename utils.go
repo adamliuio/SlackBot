@@ -124,3 +124,12 @@ func (u Utils) ConvertUnixTime(unixTs int) (tm string) {
 	tm = time.Unix(int64(unixTs), 0).Format("01-02")
 	return
 }
+
+func (u Utils) PrettyJsonString(body []byte) (respJson string) {
+	dst := &bytes.Buffer{}
+	if err := json.Indent(dst, body, "", "  "); err != nil {
+		panic(err)
+	}
+	respJson = dst.String()
+	return
+}
