@@ -140,6 +140,7 @@ type UserDataIncludes struct {
 
 type ListTweet struct {
 	Created_At        string                `json:"created_at,omitempty"`
+	Id                int                   `json:"id,omitempty"`
 	Id_Str            string                `json:"id_str,omitempty"`
 	Text              string                `json:"text,omitempty"`
 	Retweet_Count     int                   `json:"retweet_count,omitempty"`

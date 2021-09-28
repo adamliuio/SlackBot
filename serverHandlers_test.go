@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 )
@@ -31,7 +32,7 @@ func TestCommandHn(t *testing.T) {
 	log.Printf("%+v\n", string(b))
 
 	log.Printf("%+v\n", msgBlocks)
-	err = sc.SendBlocks(msgBlocks, sc.WebHookUrlTest)
+	err = sc.SendBlocks(msgBlocks, os.Getenv("WebHookUrlTest"))
 	if err != nil {
 		log.Fatalln(err)
 	}

@@ -124,9 +124,9 @@ func (hn HNClient) _retrieveNew(autoHNPostType string) (err error) {
 			return
 		}
 		if flag.Lookup("test.v") == nil && Hostname != "MacBook-Pro.local" {
-			err = sc.SendBlocks(mbs, sc.WebHookUrlHN) // send the new and not published stories to slack #hacker-news
+			err = sc.SendBlocks(mbs, os.Getenv("WebHookUrlHN")) // send the new and not published stories to slack #hacker-news
 		} else {
-			err = sc.SendBlocks(mbs, sc.WebHookUrlTest)
+			err = sc.SendBlocks(mbs, os.Getenv("WebHookUrlTest"))
 		}
 	}
 	fmt.Println("Sent.")

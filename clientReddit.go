@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"sort"
 	"strconv"
@@ -18,32 +17,33 @@ import (
 
 const redditFilename string = "ids-reddit.json"
 
-type RedditClient struct {
-	WebHookUrlReddit string
-}
+type RedditClient struct{}
 
 func (rc RedditClient) AutoRetrieveNew() (err error) {
 	fmt.Println(time.Now().Format("2006-01-02 15:04:05"), ":", "Auto retrieving new Reddit posts... ")
 	var subReddits []string = strings.Split(os.Getenv("AutoRedditSubs"), ",")
 	for _, subReddit := range subReddits {
-		var harvest reddit.Harvest = rc.Graw(subReddit)
+		var harvest reddit.Harvest
+		harvest, err = rc.Graw(subReddit)
+		if err != nil {
+			return
+		}
 		err = rc.sendPosts(harvest.Posts, subReddit)
 	}
 	return
 }
 
-func (rc RedditClient) Graw(subReddit string) (harvest reddit.Harvest) {
-	var err error
+func (rc RedditClient) Graw(subReddit string) (harvest reddit.Harvest, err error) {
 	var bot reddit.Bot
 	bot, err = reddit.NewBotFromAgentFile("reddit.agent", 0)
 	if err != nil {
-		log.Fatalln("Failed to create bot handle: ", err)
+		err = fmt.Errorf("failed to create bot handle: %s", err)
+		return
 	}
 	harvest, err = bot.Listing(subReddit, "")
 	if err != nil {
-		log.Fatalf("Failed to fetch %s: %s", subReddit, err)
+		return
 	}
-	bot = nil
 	return
 }
 
@@ -99,9 +99,9 @@ func (rc RedditClient) sendPosts(posts []*reddit.Post, subReddit string) (err er
 
 			var mbs = MessageBlocks{Blocks: mbarr}
 			if flag.Lookup("test.v") == nil && Hostname != "MacBook-Pro.local" {
-				err = sc.SendBlocks(mbs, rc.WebHookUrlReddit) // send the new and not published stories to slack #hacker-news
+				err = sc.SendBlocks(mbs, os.Getenv("WebHookUrlReddit")) // send the new and not published stories to slack #hacker-news
 			} else {
-				err = sc.SendBlocks(mbs, sc.WebHookUrlTest)
+				err = sc.SendBlocks(mbs, os.Getenv("WebHookUrlTest"))
 			}
 			if err != nil {
 				return

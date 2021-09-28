@@ -114,7 +114,7 @@ func (u Utils) dealWithError(err error, fn, url string, ignoreErr bool) {
 	if err != nil {
 		if ignoreErr {
 			log.Println(err)
-			sc.SendPlainText(fmt.Sprintf(`Error: %s\nwhen downloading "%s"\nfrom "%s"`, err.Error(), fn, url), sc.WebHookUrlTest)
+			sc.SendPlainText(fmt.Sprintf(`Error: %s\nwhen downloading "%s"\nfrom "%s"`, err.Error(), fn, url), os.Getenv("WebHookUrlTest"))
 		} else {
 			log.Panic(err)
 		}
@@ -129,7 +129,7 @@ func (u Utils) ConvertUnixTime(unixTs int) (tm string) {
 func (u Utils) PrettyJsonString(body []byte) (respJson string) {
 	dst := &bytes.Buffer{}
 	if err := json.Indent(dst, body, "", "  "); err != nil {
-		panic(err)
+		log.Panic(err)
 	}
 	respJson = dst.String()
 	return

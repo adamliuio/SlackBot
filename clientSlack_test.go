@@ -9,12 +9,12 @@ import (
 )
 
 func TestSendPlainText(t *testing.T) {
-	sc.SendPlainText("what's *up* https://api.slack.com/reference/messaging/link-unfurling", sc.WebHookUrlTest)
+	sc.SendPlainText("what's *up* https://api.slack.com/reference/messaging/link-unfurling", os.Getenv("WebHookUrlTest"))
 }
 
 func TestSendMarkdownText(t *testing.T) {
 	tt := "📺 */command*: returns all your commands for you to see\n📰 */hn* (/hn top 10-20) returns a list of buttons for retrieving buttons to interact with Hacker News."
-	sc.SendMarkdownText(tt, sc.WebHookUrlTest, "")
+	sc.SendMarkdownText(tt, os.Getenv("WebHookUrlTest"), "")
 }
 
 func TestStringSplit(t *testing.T) {

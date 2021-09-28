@@ -4,6 +4,8 @@ import (
 	"crypto/rand"
 	b64 "encoding/base64"
 	"encoding/json"
+	"flag"
+	"os"
 	"testing"
 )
 
@@ -86,10 +88,13 @@ func TestRetrieveByCommand(t *testing.T) {
 	var err error
 	msgBlocks, err = tc.RetrieveByCommand("Makers 5")
 	if err != nil {
-		t.Log(err)
+		t.Fatal(err)
 	}
-	err = sc.SendBlocks(msgBlocks, sc.WebHookUrlTest)
+	err = sc.SendBlocks(msgBlocks, os.Getenv("WebHookUrlTest"))
 	if err != nil {
-		t.Log(err)
+		t.Fatal(err)
 	}
+}
+func TestTest(t *testing.T) {
+	t.Logf("%+v\n", flag.Lookup("test.v") == nil)
 }

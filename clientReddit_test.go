@@ -10,7 +10,12 @@ import (
 )
 
 func TestGraw(t *testing.T) {
-	var harvest reddit.Harvest = rc.Graw("/r/AmItheAsshole")
+	var harvest reddit.Harvest
+	var err error
+	harvest, err = rc.Graw("/r/AmItheAsshole")
+	if err != nil {
+		t.Fatal(err)
+	}
 	sort.Slice(harvest.Posts, func(i, j int) bool {
 		return harvest.Posts[i].Ups > harvest.Posts[j].Ups
 	})

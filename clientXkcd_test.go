@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"testing"
 )
 
@@ -13,7 +14,7 @@ func TestXKSend(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = sc.SendBlocks(mbs, sc.WebHookUrlTest)
+	err = sc.SendBlocks(mbs, os.Getenv("WebHookUrlTest"))
 	if err != nil {
 		t.Fatal(err)
 	}

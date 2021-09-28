@@ -29,13 +29,6 @@ func init() {
 	if err != nil {
 		log.Fatalln("Error loading .env file")
 	}
-	sc = SlackClient{
-		WebHookUrlHN:   os.Getenv("WebHookUrlHN"),
-		WebHookUrlTest: os.Getenv("WebHookUrlTest"),
-	}
-	rc = RedditClient{
-		WebHookUrlReddit: os.Getenv("WebHookUrlReddit"),
-	}
 	go rou.StartAll()
 }
 

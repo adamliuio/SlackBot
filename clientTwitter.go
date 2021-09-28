@@ -20,6 +20,17 @@ const tweetEndpoint string = "https://api.twitter.com/2/tweets?ids=%s?tweet.fiel
 const usersByUsernameEndpoint string = "https://api.twitter.com/2/users/by?usernames=%s&user.fields=created_at,description,entities,id,location,name,pinned_tweet_id,profile_image_url,protected,url,username,verified,withheld&expansions=pinned_tweet_id&tweet.fields=attachments,author_id,conversation_id,created_at,entities,geo,id,in_reply_to_user_id,lang,possibly_sensitive,referenced_tweets,source,text,withheld"
 const usersByIdEndpoint string = "https://api.twitter.com/2/users?ids=%s&user.fields=created_at,description,entities,id,location,name,pinned_tweet_id,profile_image_url,protected,url,username,verified,withheld&expansions=pinned_tweet_id&tweet.fields=attachments,author_id,conversation_id,created_at,entities,geo,id,in_reply_to_user_id,lang,possibly_sensitive,referenced_tweets,source,text,withheld"
 const listEndpoint string = "https://api.twitter.com/1.1/lists/statuses.json?list_id=%s&count=1000"
+const twitterFilename string = "ids-twitter.json"
+
+var TweetLists = map[string]string{
+	"Makers":        "1229215345526722560",
+	"Entrepreneurs": "1229216130662723584",
+	"Greats":        "1310225357019074562",
+	"Investors":     "1237393320378118149",
+	"Physicists":    "1394817230630572034",
+	"YouTubers":     "1229243949950201856",
+	"Writters":      "1286864227475447808",
+}
 
 func (tc TwitterClient) UnmarshalTweet() (tweet Tweet) {
 	var bytes []byte = utils.ReadFile("data-samples/tweet.json")
@@ -65,7 +76,6 @@ func (tc TwitterClient) oauth1Request(url string) (body []byte) {
 	config := oauth1.NewConfig(os.Getenv("TwitterApiKey"), os.Getenv("TwitterApiKeySecret"))
 	token := oauth1.NewToken(os.Getenv("TwitterAccessToken"), os.Getenv("TwitterAccessTokenSecret"))
 	httpClient := config.Client(oauth1.NoContext, token)
-	// var url string = "https://api.twitter.com/1.1/lists/statuses.json?list_id=1229215345526722560"
 	resp, err := httpClient.Get(url)
 	if err != nil {
 		log.Panic(err)
@@ -79,24 +89,49 @@ func (tc TwitterClient) oauth1Request(url string) (body []byte) {
 	return
 }
 
-func (tc TwitterClient) RetrieveNew() (err error) {
+func (tc TwitterClient) AutoRetrieveNew() (err error) {
+	var savedTweetsIds []int
+	json.Unmarshal(utils.ReadFile(twitterFilename), &savedTweetsIds)
+
+	var mbs MessageBlocks
+	for listName, _ := range TweetLists {
+		var limit int
+		var qualifiedTweetIds []int
+		limit, _ = strconv.Atoi(os.Getenv("AutoTwitterLeaseLikes"))
+		mbs, qualifiedTweetIds, err = tc.retrieveTweets(listName, limit)
+		if err != nil {
+			return
+		}
+		savedTweetsIds = append(savedTweetsIds, qualifiedTweetIds...)
+		if flag.Lookup("test.v") == nil { // if this is not in test mode
+			err = sc.SendBlocks(mbs, os.Getenv("WebHookUrlTwitter"))
+		} else { // if is test mode
+			err = sc.SendBlocks(mbs, os.Getenv("WebHookUrlTest"))
+		}
+		if err != nil {
+			return
+		}
+	}
+
+	// save json
+	j, _ := json.Marshal(savedTweetsIds)
+	utils.WriteFile(j, twitterFilename)
 	return
 }
 
-func (tc TwitterClient) RetrieveByCommand(cmdTxt string) (mbs MessageBlocks, err error) {
-	var listName, numStr string
+func (tc TwitterClient) RetrieveByCommand(cmdTxt string) (mbs MessageBlocks, err error) { // /twt listname limit
 	var limit int
+	var listName, numStr string
 	var fields []string = strings.Fields(cmdTxt)
 	listName = fields[0]
 	numStr = fields[1]
 	limit, _ = strconv.Atoi(numStr)
+	mbs, _, err = tc.retrieveTweets(listName, limit)
+	return
+}
 
-	var tweets []ListTweet
-	if flag.Lookup("test.v") == nil {
-		tweets = tc.GetListContent(listName)
-	} else {
-		_ = json.Unmarshal(utils.ReadFile("data-samples/list-statuses.json"), &tweets)
-	}
+func (tc TwitterClient) retrieveTweets(listName string, limit int) (mbs MessageBlocks, qualifiedTweetIds []int, err error) {
+	var tweets []ListTweet = tc.GetListContent(listName)
 
 	// sort "tweets" base on scores
 	sort.Slice(tweets, func(i, j int) bool {
@@ -114,73 +149,69 @@ func (tc TwitterClient) RetrieveByCommand(cmdTxt string) (mbs MessageBlocks, err
 		}
 		return tweetIcount > tweetJcount
 	})
-	_ = limit
+
+	var mbarr []MessageBlock
 	for _, tweet := range tweets {
-		mbs.Blocks = append(mbs.Blocks, tc.formatTweet(tweet)...)
+		if tweet.Favorite_Count >= limit {
+			qualifiedTweetIds = append(qualifiedTweetIds, tweet.Id)
+			mbarr, err = tc.formatTweet(tweet)
+			if err != nil {
+				return
+			}
+			mbs.Blocks = append(mbs.Blocks, mbarr...)
+		} else if tweet.Retweeted_Status != nil && tweet.Retweeted_Status.Favorite_Count >= limit {
+			qualifiedTweetIds = append(qualifiedTweetIds, tweet.Id)
+			mbarr, err = tc.formatTweet(tweet)
+			if err != nil {
+				return
+			}
+			mbs.Blocks = append(mbs.Blocks, mbarr...)
+		}
 	}
+
 	return
 }
 
-func (tc TwitterClient) formatTweet(tweet ListTweet) (mbarr []MessageBlock) {
-	if tweet.Retweeted_Status != nil { // if it's retweet
-		return
-	}
-	mbarr = append(mbarr, MessageBlock{Type: "divider"})
+func (tc TwitterClient) formatTweet(tweet ListTweet) (mbarr []MessageBlock, err error) {
 	var txt, imageUrl string
 	if tweet.Retweeted_Status != nil { // if it's a retweet
 		txt = fmt.Sprintf(
-			`<https://twitter.com/%s|@%s>: RT <https://twitter.com/%s|@%s>: "%s"
-			[<https://twitter.com/%s/status/%s|tweet>] 🤳: *%d*, 💛: *%d*`,
+			`<https://twitter.com/%s|@%s> RT:
+<https://twitter.com/%s|@%s>: %s
+[<https://twitter.com/%s/status/%s|tweet>] retweets: *%d*, likes: *%d*`,
 			tweet.User.Screen_Name, tweet.User.Screen_Name, tweet.Retweeted_Status.User.Screen_Name, tweet.Retweeted_Status.User.Screen_Name, tweet.Retweeted_Status.Text,
-			tweet.User.Screen_Name, tweet.Id_Str, tweet.Retweet_Count, tweet.Favorite_Count,
+			tweet.User.Screen_Name, tweet.Id_Str, tweet.Retweeted_Status.Retweet_Count, tweet.Retweeted_Status.Favorite_Count,
 		)
 	} else {
 		txt = fmt.Sprintf(
-			`<https://twitter.com/%s|@%s>:\n"%s"
-			[<https://twitter.com/%s/status/%s|tweet>] 🤳: *%d*, 💛: *%d*`,
+			`<https://twitter.com/%s|@%s>: %s
+[<https://twitter.com/%s/status/%s|tweet>] retweets: *%d*, likes: *%d*`,
 			tweet.User.Screen_Name, tweet.User.Screen_Name, tweet.Text,
 			tweet.User.Screen_Name, tweet.Id_Str, tweet.Retweet_Count, tweet.Favorite_Count,
 		)
 	}
-	if tweet.Retweeted_Status != nil {
-		if len(tweet.Retweeted_Status.Extended_Entities.Media) > 0 {
-			var medias []TweetMedia = tweet.Retweeted_Status.Extended_Entities.Media
-			for _, media := range medias {
-				if media.Type == "photo" {
-					imageUrl = media.Media_Url_Https
-				} else if media.Type == "video" {
-					log.Println("creating video block!")
-					// mbarr = append(mbarr, sc.CreateTextBlock("has video", "mrkdwn"))
-				}
-			}
-		}
-	} else {
-		if len(tweet.Extended_Entities.Media) > 0 {
-			var medias []TweetMedia = tweet.Extended_Entities.Media
-			for _, media := range medias {
-				if media.Type == "photo" {
-					imageUrl = media.Media_Url_Https
-				} else if media.Type == "video" {
-					// mbarr = append(mbarr, sc.CreateTextBlock("has video", "mrkdwn"))
-				}
-			}
+	var medias []TweetMedia
+	if len(tweet.Extended_Entities.Media) > 0 {
+		medias = tweet.Extended_Entities.Media
+	} else if tweet.Retweeted_Status != nil && len(tweet.Retweeted_Status.Extended_Entities.Media) > 0 {
+		medias = tweet.Retweeted_Status.Extended_Entities.Media
+	}
+	for _, media := range medias {
+		imageUrl = media.Media_Url_Https
+		if media.Type == "photo" {
+			txt = txt + " [pic]"
+		} else if media.Type == "video" {
+			txt = txt + " [vid]"
 		}
 	}
-	mbarr = append(mbarr, sc.CreateTextBlock(txt, "mrkdwn", imageUrl))
+	var tweetBlock MessageBlock = sc.CreateTextBlock(txt, "mrkdwn", imageUrl)
+	mbarr = append(mbarr, MessageBlock{Type: "divider"})
+	mbarr = append(mbarr, tweetBlock)
 	return
 }
 
 func (tc TwitterClient) GetListContent(listName string) (tweets []ListTweet) {
-	var lists = map[string]string{
-		"Makers":        "1229215345526722560",
-		"Entrepreneurs": "1229216130662723584",
-		"Greats":        "1310225357019074562",
-		"Investors":     "1237393320378118149",
-		"Physicists":    "1394817230630572034",
-		"YouTubers":     "1229243949950201856",
-		"Writters":      "1286864227475447808",
-	}
-	var url string = fmt.Sprintf(listEndpoint, lists[listName])
+	var url string = fmt.Sprintf(listEndpoint, TweetLists[listName])
 	var respJson []byte = tc.SendHttpRequest(url, "v1")
 	_ = json.Unmarshal(respJson, &tweets)
 	return

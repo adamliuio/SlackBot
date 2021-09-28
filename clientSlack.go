@@ -3,14 +3,10 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"time"
+	"log"
 )
 
-type SlackClient struct {
-	WebHookUrlHN   string
-	WebHookUrlTest string
-	TimeOut        time.Duration
-}
+type SlackClient struct{}
 
 type SlackMessage struct {
 	Text        string       `json:"text,omitempty"`
@@ -117,22 +113,24 @@ func (sc SlackClient) CreateTextBlock(text, textType, imageUrl string) (mb Messa
 			Accessory: &ImageAccessory{
 				Type:     "image",
 				ImageUrl: imageUrl,
+				AltText:  text,
 			},
 		}
 	}
 	return
 }
 
-func (sc SlackClient) sendText(messageBlocks MessageBlocks, url string) (err error) { // only supports plain_text & mrkdwn
-	return sc.SendBlocks(messageBlocks, url)
+func (sc SlackClient) sendText(msgBlocks MessageBlocks, url string) (err error) { // only supports plain_text & mrkdwn
+	return sc.SendBlocks(msgBlocks, url)
 }
 
 func (sc SlackClient) SendBlocks(msgBlocks MessageBlocks, url string) (err error) {
 	var reqBody []byte
 	if flag.Lookup("test.v") == nil { // if this is not in test mode
-		reqBody, err = json.MarshalIndent(msgBlocks, "", "    ")
-	} else {
 		reqBody, err = json.Marshal(msgBlocks)
+	} else { // if is test mode
+		reqBody, err = json.MarshalIndent(msgBlocks, "", "    ")
+		log.Println(string(reqBody))
 	}
 	if err != nil {
 		return
