@@ -173,7 +173,7 @@ func (hn HNClient) hnStoriesToBlocks(storyTypeInfo string, stories []HNItem, use
 	var story HNItem
 	var messageBlocks []MessageBlock
 	if storyTypeInfo != "" {
-		messageBlocks = append(messageBlocks, sc.CreateTextBlock(fmt.Sprintf("*%s*", storyTypeInfo), "mrkdwn"))
+		messageBlocks = append(messageBlocks, sc.CreateTextBlock(fmt.Sprintf("*%s*", storyTypeInfo), "mrkdwn", ""))
 	}
 	for _, story = range stories {
 		var text string = fmt.Sprintf(
@@ -183,7 +183,7 @@ func (hn HNClient) hnStoriesToBlocks(storyTypeInfo string, stories []HNItem, use
 		if useDivider {
 			messageBlocks = append(messageBlocks, MessageBlock{Type: "divider"})
 		}
-		messageBlocks = append(messageBlocks, sc.CreateTextBlock(text, "mrkdwn"))
+		messageBlocks = append(messageBlocks, sc.CreateTextBlock(text, "mrkdwn", ""))
 	}
 
 	msgBlocks = MessageBlocks{Blocks: messageBlocks}

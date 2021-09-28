@@ -23,6 +23,7 @@ var (
 )
 
 func init() {
+	Hostname, _ = os.Hostname()
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	err := godotenv.Load()
 	if err != nil {
@@ -35,8 +36,6 @@ func init() {
 	rc = RedditClient{
 		WebHookUrlReddit: os.Getenv("WebHookUrlReddit"),
 	}
-	Hostname, _ = os.Hostname()
-	// rc.Init()
 	go rou.StartAll()
 }
 

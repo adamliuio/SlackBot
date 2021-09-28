@@ -87,7 +87,7 @@ func (mw Middlewares) Commands(c *fiber.Ctx) error {
 
 func (mw Middlewares) commandCommands() MessageBlocks { // use "/commands" to trigger this
 	var cmdStr string = "Your friendly commands reminder:\n📺 */command*: returns all your commands for you to see\n📰 */hn* (/hn top 10-20) returns a list of buttons for retrieving buttons to interact with Hacker News."
-	var msgBlocks MessageBlocks = sc.CreateTextBlocks(cmdStr, "mrkdwn")
+	var msgBlocks MessageBlocks = sc.CreateTextBlocks(cmdStr, "mrkdwn", "")
 	return msgBlocks
 }
 

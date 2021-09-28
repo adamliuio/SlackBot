@@ -139,14 +139,36 @@ type UserDataIncludes struct {
 }
 
 type ListTweet struct {
-	Created_At       string        `json:"created_at,omitempty"`
-	Id_Str           string        `json:"id_str,omitempty"`
-	Text             string        `json:"text,omitempty"`
-	Retweet_Count    int           `json:"retweet_count,omitempty"`
-	Favorite_Count   int           `json:"favorite_count,omitempty"`
-	User             ListTweetUser `json:"user,omitempty"`
-	Retweeted_Status *ListTweet    `json:"retweeted_status,omitempty"`
-	Entities         TweetEntities `json:"entities,omitempty"`
+	Created_At        string                `json:"created_at,omitempty"`
+	Id_Str            string                `json:"id_str,omitempty"`
+	Text              string                `json:"text,omitempty"`
+	Retweet_Count     int                   `json:"retweet_count,omitempty"`
+	Favorite_Count    int                   `json:"favorite_count,omitempty"`
+	User              ListTweetUser         `json:"user,omitempty"`
+	Retweeted_Status  *ListTweet            `json:"retweeted_status,omitempty"`
+	Entities          TweetEntities         `json:"entities,omitempty"`
+	Extended_Entities TweetExtendedEntities `json:"extended_entities,omitempty"`
+}
+
+type TweetExtendedEntities struct {
+	Media []TweetMedia `json:"media,omitempty"`
+}
+
+type TweetMedia struct {
+	Id_Str          string         `json:"id_str,omitempty"`
+	Type            string         `json:"type,omitempty"` // type: video/photo
+	Video_Info      TweetVideoInfo `json:"video_info,omitempty"`
+	Media_Url_Https string         `json:"media_url_https,omitempty"` // for photo
+}
+
+type TweetVideoInfo struct {
+	Variants []TweetVideoVariant `json:"variants,omitempty"`
+}
+
+type TweetVideoVariant struct {
+	Bitrate      int    `json:"bitrate,omitempty"`
+	Content_Type string `json:"content_type,omitempty"`
+	Url          string `json:"url,omitempty"`
 }
 
 type ListTweetUser struct {

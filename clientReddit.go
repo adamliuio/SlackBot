@@ -19,36 +19,37 @@ import (
 const redditFilename string = "ids-reddit.json"
 
 type RedditClient struct {
-	WebHookUrlReddit   string
-	retrivedStoriesIds []string
+	WebHookUrlReddit string
 }
 
-func (rc RedditClient) Init() {
-	_ = json.Unmarshal(utils.ReadFile(redditFilename), &rc.retrivedStoriesIds)
+func (rc RedditClient) RetrieveNew() (err error) {
+	fmt.Print(time.Now().Format("2006-01-02 15:04:05"), " : ", "Auto retrieving new Reddit posts... ")
+	var subReddits []string = strings.Split(os.Getenv("AutoRedditSubs"), ",")
+	for _, subReddit := range subReddits {
+		var harvest reddit.Harvest = rc.Graw(subReddit)
+		err = rc.sendPosts(harvest.Posts, subReddit)
+	}
+	return
 }
 
-func (rc RedditClient) Graw() (harvest reddit.Harvest) {
+func (rc RedditClient) Graw(subReddit string) (harvest reddit.Harvest) {
 	var err error
 	var bot reddit.Bot
 	bot, err = reddit.NewBotFromAgentFile("reddit.agent", 0)
 	if err != nil {
 		log.Fatalln("Failed to create bot handle: ", err)
 	}
-	harvest, err = bot.Listing(os.Getenv("AutoRedditSub"), "")
+	harvest, err = bot.Listing(subReddit, "")
 	if err != nil {
-		log.Fatalln("Failed to fetch /r/golang: ", err)
+		log.Fatalf("Failed to fetch %s: %s", subReddit, err)
 	}
+	bot = nil
 	return
 }
 
-func (rc RedditClient) RetrieveNew() (err error) {
-	fmt.Print(time.Now().Format("2006-01-02 15:04:05"), " : ", "Auto retrieving new Reddit posts... ")
-	var harvest reddit.Harvest = rc.Graw()
-	err = rc.sendPosts(harvest.Posts)
-	return
-}
-
-func (rc RedditClient) sendPosts(posts []*reddit.Post) (err error) {
+func (rc RedditClient) sendPosts(posts []*reddit.Post, subReddit string) (err error) {
+	var savedStoryIds []string
+	_ = json.Unmarshal(utils.ReadFile(redditFilename), &savedStoryIds)
 
 	// sort "posts" base on scores
 	sort.Slice(posts, func(i, j int) bool {
@@ -68,7 +69,7 @@ func (rc RedditClient) sendPosts(posts []*reddit.Post) (err error) {
 		}
 	}
 	if i < 1 {
-		fmt.Println("No new post from Reddit!")
+		fmt.Printf("No new post from %s!", subReddit)
 		return
 	} else {
 		fmt.Println(time.Now().Format("2006-01-02 15:04:05"), " : ", "Auto retrieving Hacker news posts... ")
@@ -78,7 +79,7 @@ func (rc RedditClient) sendPosts(posts []*reddit.Post) (err error) {
 	var mbarr []MessageBlock
 	for _, post = range posts[:i] {
 		var exist bool = false
-		for _, existID := range rc.retrivedStoriesIds {
+		for _, existID := range savedStoryIds {
 			if post.ID == existID {
 				exist = true
 				break
@@ -87,8 +88,8 @@ func (rc RedditClient) sendPosts(posts []*reddit.Post) (err error) {
 		if exist {
 			continue
 		} else { // send post
-			rc.retrivedStoriesIds = append(rc.retrivedStoriesIds, post.ID) // add new post id to existing ones
-			if strings.Contains(post.URL, "v.redd.it") {                   // video
+			savedStoryIds = append(savedStoryIds, post.ID) // add new post id to existing ones
+			if strings.Contains(post.URL, "v.redd.it") {   // video
 				mbarr = rc.createVideoMsgBlock(post)
 			} else if strings.Contains(post.URL, "i.redd.it") { // image
 				mbarr = rc.createImageMsgBlock(post)
@@ -108,7 +109,7 @@ func (rc RedditClient) sendPosts(posts []*reddit.Post) (err error) {
 		}
 	}
 
-	file, _ := json.Marshal(rc.retrivedStoriesIds)
+	file, _ := json.Marshal(savedStoryIds)
 	utils.WriteFile(file, redditFilename)
 	return
 }

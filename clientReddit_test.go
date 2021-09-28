@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"os"
 	"sort"
 	"strconv"
@@ -11,15 +10,15 @@ import (
 )
 
 func TestGraw(t *testing.T) {
-	var harvest reddit.Harvest = rc.Graw()
+	var harvest reddit.Harvest = rc.Graw("/r/AmItheAsshole")
 	sort.Slice(harvest.Posts, func(i, j int) bool {
 		return harvest.Posts[i].Ups > harvest.Posts[j].Ups
 	})
 	for _, p := range harvest.Posts {
-		log.Printf("up: %d, score: %d, title: %s\n\n", p.Ups, p.Score, p.Title)
+		t.Logf("up: %d, score: %d, title: %s\n\n", p.Ups, p.Score, p.Title)
 		leastScore, _ := strconv.Atoi(os.Getenv("AutoRedditLeaseScore"))
 		if p.Ups > int32(leastScore) {
-			log.Printf("%+v\n\n", p)
+			t.Logf("%+v\n\n", p)
 		}
 	}
 }
@@ -35,6 +34,6 @@ func TestRCRetrieveNew(t *testing.T) {
 func TestHostname(t *testing.T) {
 	hostname, err := os.Hostname()
 	if err == nil {
-		log.Println("hostname:", hostname)
+		t.Log("hostname:", hostname)
 	}
 }

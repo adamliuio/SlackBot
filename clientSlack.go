@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"time"
 )
 
@@ -81,30 +82,45 @@ type ElementText struct {
 	Text string `json:"text,omitempty"`
 }
 
-func (sc SlackClient) SendMarkdownText(text, url string) (err error) {
-	return sc.sendText(sc.CreateTextBlocks(text, "mrkdwn"), url)
+func (sc SlackClient) SendMarkdownText(text, url, imageUrl string) (err error) {
+	return sc.sendText(sc.CreateTextBlocks(text, "mrkdwn", imageUrl), url)
 }
 
 func (sc SlackClient) SendPlainText(text, url string) (err error) {
-	return sc.sendText(sc.CreateTextBlocks(text, "plain_text"), url)
+	return sc.sendText(sc.CreateTextBlocks(text, "plain_text", ""), url)
 }
 
-func (sc SlackClient) CreateTextBlocks(text, textType string) MessageBlocks {
+func (sc SlackClient) CreateTextBlocks(text, textType, imageUrl string) MessageBlocks {
 	return MessageBlocks{
 		Blocks: []MessageBlock{
-			sc.CreateTextBlock(text, textType),
+			sc.CreateTextBlock(text, textType, imageUrl),
 		},
 	}
 }
 
-func (sc SlackClient) CreateTextBlock(text, textType string) MessageBlock {
-	return MessageBlock{
-		Type: "section",
-		Text: &ElementText{
-			Type: textType,
-			Text: text,
-		},
+func (sc SlackClient) CreateTextBlock(text, textType, imageUrl string) (mb MessageBlock) {
+	if imageUrl == "" {
+		mb = MessageBlock{
+			Type: "section",
+			Text: &ElementText{
+				Type: textType,
+				Text: text,
+			},
+		}
+	} else {
+		mb = MessageBlock{
+			Type: "section",
+			Text: &ElementText{
+				Type: textType,
+				Text: text,
+			},
+			Accessory: &ImageAccessory{
+				Type:     "image",
+				ImageUrl: imageUrl,
+			},
+		}
 	}
+	return
 }
 
 func (sc SlackClient) sendText(messageBlocks MessageBlocks, url string) (err error) { // only supports plain_text & mrkdwn
@@ -113,10 +129,13 @@ func (sc SlackClient) sendText(messageBlocks MessageBlocks, url string) (err err
 
 func (sc SlackClient) SendBlocks(msgBlocks MessageBlocks, url string) (err error) {
 	var reqBody []byte
-	reqBody, err = json.MarshalIndent(msgBlocks, "", "    ")
+	if flag.Lookup("test.v") == nil { // if this is not in test mode
+		reqBody, err = json.MarshalIndent(msgBlocks, "", "    ")
+	} else {
+		reqBody, err = json.Marshal(msgBlocks)
+	}
 	if err != nil {
 		return
 	}
-	// log.Printf("%+v\n", string(reqBody))
 	return utils.SendBytes(reqBody, url)
 }

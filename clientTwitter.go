@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -15,9 +16,10 @@ import (
 
 type TwitterClient struct{}
 
-const tweetEndpoint string = "https://api.twitter.com/2/tweets/%s?tweet.fields=attachments,author_id,created_at,entities,geo,id,in_reply_to_user_id,lang,possibly_sensitive,referenced_tweets,source,text,withheld"
+const tweetEndpoint string = "https://api.twitter.com/2/tweets?ids=%s?tweet.fields=attachments,conversation_id,author_id,created_at,entities,geo,id,in_reply_to_user_id,lang,possibly_sensitive,referenced_tweets,source,text,withheld"
 const usersByUsernameEndpoint string = "https://api.twitter.com/2/users/by?usernames=%s&user.fields=created_at,description,entities,id,location,name,pinned_tweet_id,profile_image_url,protected,url,username,verified,withheld&expansions=pinned_tweet_id&tweet.fields=attachments,author_id,conversation_id,created_at,entities,geo,id,in_reply_to_user_id,lang,possibly_sensitive,referenced_tweets,source,text,withheld"
 const usersByIdEndpoint string = "https://api.twitter.com/2/users?ids=%s&user.fields=created_at,description,entities,id,location,name,pinned_tweet_id,profile_image_url,protected,url,username,verified,withheld&expansions=pinned_tweet_id&tweet.fields=attachments,author_id,conversation_id,created_at,entities,geo,id,in_reply_to_user_id,lang,possibly_sensitive,referenced_tweets,source,text,withheld"
+const listEndpoint string = "https://api.twitter.com/1.1/lists/statuses.json?list_id=%s&count=1000"
 
 func (tc TwitterClient) UnmarshalTweet() (tweet Tweet) {
 	var bytes []byte = utils.ReadFile("data-samples/tweet.json")
@@ -81,7 +83,7 @@ func (tc TwitterClient) RetrieveNew() (err error) {
 	return
 }
 
-func (tc TwitterClient) RetrieveByCommand(cmdTxt string) (msgBlocks MessageBlocks, err error) {
+func (tc TwitterClient) RetrieveByCommand(cmdTxt string) (mbs MessageBlocks, err error) {
 	var listName, numStr string
 	var limit int
 	var fields []string = strings.Fields(cmdTxt)
@@ -89,12 +91,14 @@ func (tc TwitterClient) RetrieveByCommand(cmdTxt string) (msgBlocks MessageBlock
 	numStr = fields[1]
 	limit, _ = strconv.Atoi(numStr)
 
-	// var tweets []ListTweet = tc.GetListContent(listName)
-	_ = listName
 	var tweets []ListTweet
-	_ = json.Unmarshal(utils.ReadFile("data-samples/list-statuses.json"), &tweets)
+	if flag.Lookup("test.v") == nil {
+		tweets = tc.GetListContent(listName)
+	} else {
+		_ = json.Unmarshal(utils.ReadFile("data-samples/list-statuses.json"), &tweets)
+	}
 
-	// sort "storiesItemsList" base on scores
+	// sort "tweets" base on scores
 	sort.Slice(tweets, func(i, j int) bool {
 		var tweetI, tweetJ ListTweet = tweets[i], tweets[j]
 		var tweetIcount, tweetJcount int
@@ -110,27 +114,59 @@ func (tc TwitterClient) RetrieveByCommand(cmdTxt string) (msgBlocks MessageBlock
 		}
 		return tweetIcount > tweetJcount
 	})
-
-	// log.Println(len(tweets))
-	// log.Fatalln(limit)
-	for _, tweet := range tweets[:limit] {
-		var txt string
-		if tweet.Retweeted_Status != nil {
-			txt = fmt.Sprintf(
-				`<https://twitter.com/%s|@%s>: "%s"
-				<https://twitter.com/%s|@%s>: "%s"`,
-				tweet.User.Screen_Name, tweet.User.Screen_Name, tweet.Text,
-				tweet.Retweeted_Status.User.Screen_Name, tweet.Retweeted_Status.User.Screen_Name, tweet.Retweeted_Status.Text,
-			)
-		} else {
-			txt = fmt.Sprintf(
-				`<https://twitter.com/%s|@%s>:\n"%s"`,
-				tweet.User.Screen_Name, tweet.User.Screen_Name, tweet.Text,
-			)
-		}
-		msgBlocks.Blocks = append(msgBlocks.Blocks, MessageBlock{Type: "divider"})
-		msgBlocks.Blocks = append(msgBlocks.Blocks, sc.CreateTextBlock(txt, "mrkdwn"))
+	_ = limit
+	for _, tweet := range tweets {
+		mbs.Blocks = append(mbs.Blocks, tc.formatTweet(tweet)...)
 	}
+	return
+}
+
+func (tc TwitterClient) formatTweet(tweet ListTweet) (mbarr []MessageBlock) {
+	if tweet.Retweeted_Status != nil { // if it's retweet
+		return
+	}
+	mbarr = append(mbarr, MessageBlock{Type: "divider"})
+	var txt, imageUrl string
+	if tweet.Retweeted_Status != nil { // if it's a retweet
+		txt = fmt.Sprintf(
+			`<https://twitter.com/%s|@%s>: RT <https://twitter.com/%s|@%s>: "%s"
+			[<https://twitter.com/%s/status/%s|tweet>] 🤳: *%d*, 💛: *%d*`,
+			tweet.User.Screen_Name, tweet.User.Screen_Name, tweet.Retweeted_Status.User.Screen_Name, tweet.Retweeted_Status.User.Screen_Name, tweet.Retweeted_Status.Text,
+			tweet.User.Screen_Name, tweet.Id_Str, tweet.Retweet_Count, tweet.Favorite_Count,
+		)
+	} else {
+		txt = fmt.Sprintf(
+			`<https://twitter.com/%s|@%s>:\n"%s"
+			[<https://twitter.com/%s/status/%s|tweet>] 🤳: *%d*, 💛: *%d*`,
+			tweet.User.Screen_Name, tweet.User.Screen_Name, tweet.Text,
+			tweet.User.Screen_Name, tweet.Id_Str, tweet.Retweet_Count, tweet.Favorite_Count,
+		)
+	}
+	if tweet.Retweeted_Status != nil {
+		if len(tweet.Retweeted_Status.Extended_Entities.Media) > 0 {
+			var medias []TweetMedia = tweet.Retweeted_Status.Extended_Entities.Media
+			for _, media := range medias {
+				if media.Type == "photo" {
+					imageUrl = media.Media_Url_Https
+				} else if media.Type == "video" {
+					log.Println("creating video block!")
+					// mbarr = append(mbarr, sc.CreateTextBlock("has video", "mrkdwn"))
+				}
+			}
+		}
+	} else {
+		if len(tweet.Extended_Entities.Media) > 0 {
+			var medias []TweetMedia = tweet.Extended_Entities.Media
+			for _, media := range medias {
+				if media.Type == "photo" {
+					imageUrl = media.Media_Url_Https
+				} else if media.Type == "video" {
+					// mbarr = append(mbarr, sc.CreateTextBlock("has video", "mrkdwn"))
+				}
+			}
+		}
+	}
+	mbarr = append(mbarr, sc.CreateTextBlock(txt, "mrkdwn", imageUrl))
 	return
 }
 
@@ -144,8 +180,7 @@ func (tc TwitterClient) GetListContent(listName string) (tweets []ListTweet) {
 		"YouTubers":     "1229243949950201856",
 		"Writters":      "1286864227475447808",
 	}
-	var url string = fmt.Sprintf("https://api.twitter.com/1.1/lists/statuses.json?list_id=%s&count=1000", lists[listName])
-
+	var url string = fmt.Sprintf(listEndpoint, lists[listName])
 	var respJson []byte = tc.SendHttpRequest(url, "v1")
 	_ = json.Unmarshal(respJson, &tweets)
 	return
