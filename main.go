@@ -11,7 +11,7 @@ var (
 	rc RedditClient
 	sc SlackClient
 	tc TwitterClient
-	// xk XKCDClient
+	xk XKCDClient
 	hn = HNClient{
 		ItemUrlTmplt:    "https://hacker-news.firebaseio.com/v0/item/%d.json",                // "https://hacker-news.firebaseio.com/v0/item/8863.json?print=pretty"
 		StoriesUrlTmplt: "https://hacker-news.firebaseio.com/v0/%sstories.json?print=pretty", // for finding top/new/best stories

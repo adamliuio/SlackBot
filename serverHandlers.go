@@ -79,6 +79,8 @@ func (mw Middlewares) Commands(c *fiber.Ctx) error {
 		return c.JSON(mw.commandHn(cmd))
 	case "/twt":
 		return c.JSON(mw.commandTwitter(cmd))
+	case "/xkcd":
+		return c.JSON(mw.commandXkcd(cmd)) // "/xkcd 123"
 	default:
 		fmt.Printf("%s.\n", cmd.Command)
 	}
@@ -91,7 +93,7 @@ func (mw Middlewares) commandCommands() MessageBlocks { // use "/commands" to tr
 	return msgBlocks
 }
 
-func (mw Middlewares) commandHn(cmd *SlashCommand) (msgBlocks MessageBlocks) { // use "/hn top 10" to trigger this
+func (mw Middlewares) commandHn(cmd *SlashCommand) (msgBlocks MessageBlocks) { // "/hn top 10"
 	var err error
 	msgBlocks, err = hn.RetrieveByCommand(cmd.Text)
 	if err != nil {
@@ -100,9 +102,18 @@ func (mw Middlewares) commandHn(cmd *SlashCommand) (msgBlocks MessageBlocks) { /
 	return msgBlocks
 }
 
-func (mw Middlewares) commandTwitter(cmd *SlashCommand) (msgBlocks MessageBlocks) { // use "/hn top 10" to trigger this
+func (mw Middlewares) commandTwitter(cmd *SlashCommand) (msgBlocks MessageBlocks) { // "/twt"
 	var err error
 	msgBlocks, err = tc.RetrieveByCommand(cmd.Text)
+	if err != nil {
+		log.Println(err)
+	}
+	return msgBlocks
+}
+
+func (mw Middlewares) commandXkcd(cmd *SlashCommand) (msgBlocks MessageBlocks) { // "/xkcd 123"
+	var err error
+	msgBlocks, err = xk.GetStoryById(cmd.Text)
 	if err != nil {
 		log.Println(err)
 	}

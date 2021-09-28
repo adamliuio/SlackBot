@@ -40,8 +40,8 @@ type HNItem struct {
 
 const hnFilename string = "ids-hn.json"
 
-func (hn HNClient) RetrieveNew() (err error) {
-	fmt.Println(time.Now().Format("2006-01-02 15:04:05"), " : ", "Auto retrieving Hacker news posts... ")
+func (hn HNClient) AutoRetrieveNew() (err error) {
+	fmt.Println(time.Now().Format("2006-01-02 15:04:05"), ":", "Auto retrieving Hacker news posts... ")
 	for _, s := range []string{"top", "new", "best"} {
 		err = hn._retrieveNew(s)
 		if err != nil {

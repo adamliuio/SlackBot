@@ -9,9 +9,14 @@ type Routines struct{}
 
 func (rou Routines) StartAll() {
 	if flag.Lookup("test.v") == nil { // if this is not in test mode
+		var i int = 0
 		for {
-			go hn.RetrieveNew() // hacker news
-			go rc.RetrieveNew() // reddit
+			go hn.AutoRetrieveNew() // hacker news
+			go rc.AutoRetrieveNew() // reddit
+			if i%12 == 0 {          // run every 12 hours
+				go xk.AutoRetrieveNew() // xkcd
+			}
+			i++
 			time.Sleep(time.Hour)
 		}
 	}

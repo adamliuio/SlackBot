@@ -28,7 +28,7 @@ func TestFiling(t *testing.T) {
 }
 
 func TestRCRetrieveNew(t *testing.T) {
-	rc.RetrieveNew()
+	rc.AutoRetrieveNew()
 }
 
 func TestHostname(t *testing.T) {

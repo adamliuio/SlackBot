@@ -3,12 +3,14 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"time"
 )
 
+// XKCD
 type XKCDClient struct{}
 
-// https://xkcd.com/2516/info.0.json
-// {"month": "9", "num": 2516, "link": "", "year": "2021", "news": "", "safe_title": "Hubble Tension", "transcript": "", "alt": "Oh, wait, I might've had it set to kph instead of mph. But that would make the discrepancy even wider!", "img": "https://imgs.xkcd.com/comics/hubble_tension.png", "title": "Hubble Tension", "day": "15"}
+const xkcdFilename string = "ids-xkcd.json"
 
 type xkcdJSON struct {
 	Month      string `json:"month,omitempty"`
@@ -24,8 +26,27 @@ type xkcdJSON struct {
 	Day        string `json:"day,omitempty"`
 }
 
-func (xk XKCDClient) RetrieveJsonById(id int) (xkj xkcdJSON, err error) {
-	var fStr string = "https://xkcd.com/%d/info.0.json"
+func (xk XKCDClient) AutoRetrieveNew() (err error) {
+	fmt.Println(time.Now().Format("2006-01-02 15:04:05"), ":", "Auto retrieving new XKCD cartoon... ")
+	var lastID int
+	_ = json.Unmarshal(utils.ReadFile(xkcdFilename), &lastID)
+	lastID++
+	var mbs MessageBlocks
+	mbs, err = xk.GetStoryById(fmt.Sprintf("%d", lastID))
+	if err != nil {
+		return
+	}
+	err = sc.SendBlocks(mbs, os.Getenv("WebHookUrlCartoons"))
+	if err != nil {
+		return
+	}
+	j, _ := json.Marshal(lastID)
+	utils.WriteFile(j, xkcdFilename)
+	return
+}
+
+func (xk XKCDClient) RetrieveJsonById(id string) (xkj xkcdJSON, err error) {
+	var fStr string = "https://xkcd.com/%s/info.0.json"
 	var body []byte = utils.RetrieveBytes(fmt.Sprintf(fStr, id), nil)
 	err = json.Unmarshal(body, &xkj)
 	if err != nil {
@@ -34,6 +55,25 @@ func (xk XKCDClient) RetrieveJsonById(id int) (xkj xkcdJSON, err error) {
 	return
 }
 
-func (xk XKCDClient) GetStoryById(id int) {
-	xk.RetrieveJsonById(id)
+func (xk XKCDClient) GetStoryById(id string) (mbs MessageBlocks, err error) {
+	var xkj xkcdJSON
+	xkj, err = xk.RetrieveJsonById(id)
+	mbs = MessageBlocks{
+		Blocks: []MessageBlock{
+			{Type: "divider"},
+			{
+				Type: "section",
+				Text: &ElementText{
+					Type: "mrkdwn",
+					Text: fmt.Sprintf("*%s* [No.%s] <%s-%s-%s>\n%s", xkj.SafeTitle, id, xkj.Year, xkj.Month, xkj.Day, xkj.Transcript),
+				},
+			},
+			{
+				Type:     "image",
+				ImageUrl: xkj.Img,
+				AltText:  xkj.Alt,
+			},
+		},
+	}
+	return
 }

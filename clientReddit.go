@@ -22,8 +22,8 @@ type RedditClient struct {
 	WebHookUrlReddit string
 }
 
-func (rc RedditClient) RetrieveNew() (err error) {
-	fmt.Print(time.Now().Format("2006-01-02 15:04:05"), " : ", "Auto retrieving new Reddit posts... ")
+func (rc RedditClient) AutoRetrieveNew() (err error) {
+	fmt.Println(time.Now().Format("2006-01-02 15:04:05"), ":", "Auto retrieving new Reddit posts... ")
 	var subReddits []string = strings.Split(os.Getenv("AutoRedditSubs"), ",")
 	for _, subReddit := range subReddits {
 		var harvest reddit.Harvest = rc.Graw(subReddit)
@@ -69,7 +69,7 @@ func (rc RedditClient) sendPosts(posts []*reddit.Post, subReddit string) (err er
 		}
 	}
 	if i < 1 {
-		fmt.Printf("No new post from %s!", subReddit)
+		fmt.Printf("No new post from %s!\n", subReddit)
 		return
 	} else {
 		fmt.Println(time.Now().Format("2006-01-02 15:04:05"), " : ", "Auto retrieving Hacker news posts... ")
