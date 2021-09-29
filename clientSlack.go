@@ -94,6 +94,14 @@ func (sc SlackClient) CreateTextBlocks(text, textType, imageUrl string) MessageB
 	}
 }
 
+func (sc SlackClient) CreateImageBlock(imageUrl, altText string) (mb MessageBlock) {
+	mb = MessageBlock{
+		Type:     "image",
+		ImageUrl: imageUrl,
+		AltText:  altText,
+	}
+	return
+}
 func (sc SlackClient) CreateTextBlock(text, textType, imageUrl string) (mb MessageBlock) {
 	if imageUrl == "" {
 		mb = MessageBlock{

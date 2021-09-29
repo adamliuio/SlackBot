@@ -35,7 +35,7 @@ func (mw Middlewares) Shortcuts(c *fiber.Ctx) error {
 	var incomingData []byte = c.Body()
 	log.Printf("c.Body(): %+v\n\n", string(incomingData))
 
-	var msgBlocks = MessageBlocks{
+	var mbs = MessageBlocks{
 		Blocks: []MessageBlock{
 			{
 				Type: "section",
@@ -47,10 +47,10 @@ func (mw Middlewares) Shortcuts(c *fiber.Ctx) error {
 		},
 	}
 
-	_ = msgBlocks
+	_ = mbs
 
 	return c.SendString("pong 👋!")
-	// return c.JSON(msgBlocks)
+	// return c.JSON(mbs)
 }
 
 func (mw Middlewares) Ping(c *fiber.Ctx) error { return c.SendString("pong 👋!") }
@@ -78,7 +78,7 @@ func (mw Middlewares) Commands(c *fiber.Ctx) error {
 	case "/hn":
 		return c.JSON(mw.commandHn(cmd))
 	case "/twt":
-		return c.JSON(mw.commandTwitter(cmd))
+		return c.JSON(mw.commandTwitter(cmd)) // /twt Makers 5
 	case "/xkcd":
 		return c.JSON(mw.commandXkcd(cmd)) // "/xkcd 123"
 	default:
@@ -89,35 +89,39 @@ func (mw Middlewares) Commands(c *fiber.Ctx) error {
 
 func (mw Middlewares) commandCommands() MessageBlocks { // use "/commands" to trigger this
 	var cmdStr string = "Your friendly commands reminder:\n📺 */command*: returns all your commands for you to see\n📰 */hn* (/hn top 10-20) returns a list of buttons for retrieving buttons to interact with Hacker News."
-	var msgBlocks MessageBlocks = sc.CreateTextBlocks(cmdStr, "mrkdwn", "")
-	return msgBlocks
+	var mbs MessageBlocks = sc.CreateTextBlocks(cmdStr, "mrkdwn", "")
+	return mbs
 }
 
-func (mw Middlewares) commandHn(cmd *SlashCommand) (msgBlocks MessageBlocks) { // "/hn top 10"
+func (mw Middlewares) commandHn(cmd *SlashCommand) (mbs MessageBlocks) { // "/hn top 10"
 	var err error
-	msgBlocks, err = hn.RetrieveByCommand(cmd.Text)
+	mbs, err = hn.RetrieveByCommand(cmd.Text)
 	if err != nil {
 		log.Println(err)
 	}
-	return msgBlocks
+	return mbs
 }
 
-func (mw Middlewares) commandTwitter(cmd *SlashCommand) (msgBlocks MessageBlocks) { // "/twt"
+func (mw Middlewares) commandTwitter(cmd *SlashCommand) (mbs MessageBlocks) { // "/twt"
 	var err error
-	msgBlocks, err = tc.RetrieveByCommand(cmd.Text)
+	var mbList [][]MessageBlock
+	mbList, err = tc.RetrieveByCommand(cmd.Text)
+	for _, mb := range mbList {
+		mbs.Blocks = append(mbs.Blocks, mb...)
+	}
 	if err != nil {
 		log.Println(err)
 	}
-	return msgBlocks
+	return mbs
 }
 
-func (mw Middlewares) commandXkcd(cmd *SlashCommand) (msgBlocks MessageBlocks) { // "/xkcd 123"
+func (mw Middlewares) commandXkcd(cmd *SlashCommand) (mbs MessageBlocks) { // "/xkcd 123"
 	var err error
-	msgBlocks, err = xk.GetStoryById(cmd.Text)
+	mbs, err = xk.GetStoryById(cmd.Text)
 	if err != nil {
 		log.Println(err)
 	}
-	return msgBlocks
+	return mbs
 }
 
 // curl -X POST http://127.0.0.1:8080/challenge -d '{"challenge": "accepted"}'

@@ -90,47 +90,54 @@ func (tc TwitterClient) oauth1Request(url string) (body []byte) {
 }
 
 func (tc TwitterClient) AutoRetrieveNew() (err error) {
-	var savedTweetsIds []int
-	json.Unmarshal(utils.ReadFile(twitterFilename), &savedTweetsIds)
+	// var savedTweetIds []int
+	// json.Unmarshal(utils.ReadFile(twitterFilename), &savedTweetIds)
 
-	var mbs MessageBlocks
-	for listName, _ := range TweetLists {
-		var limit int
-		var qualifiedTweetIds []int
-		limit, _ = strconv.Atoi(os.Getenv("AutoTwitterLeaseLikes"))
-		mbs, qualifiedTweetIds, err = tc.retrieveTweets(listName, limit)
+	for listName := range TweetLists {
+		var leastLikes int
+		var mbList [][]MessageBlock
+		leastLikes, _ = strconv.Atoi(os.Getenv("AutoTwitterLeaseLikes"))
+		mbList, err = tc.retrieveTweets(listName, leastLikes)
 		if err != nil {
 			return
 		}
-		savedTweetsIds = append(savedTweetsIds, qualifiedTweetIds...)
-		if flag.Lookup("test.v") == nil { // if this is not in test mode
-			err = sc.SendBlocks(mbs, os.Getenv("WebHookUrlTwitter"))
-		} else { // if is test mode
-			err = sc.SendBlocks(mbs, os.Getenv("WebHookUrlTest"))
+		var i int
+		var mb []MessageBlock
+		for i, mb = range mbList {
+			var mbs MessageBlocks
+			if i == 0 {
+				mbs.Blocks = []MessageBlock{{Type: "header", Text: &ElementText{Type: "plain_text", Text: listName}}}
+			}
+			mbs.Blocks = append(mbs.Blocks, mb...)
+			if flag.Lookup("test.v") == nil { // if this is not in test mode
+				err = sc.SendBlocks(mbs, os.Getenv("WebHookUrlTwitter"))
+			} else { // if is test mode
+				err = sc.SendBlocks(mbs, os.Getenv("WebHookUrlTest"))
+			}
 		}
 		if err != nil {
 			return
 		}
 	}
 
-	// save json
-	j, _ := json.Marshal(savedTweetsIds)
-	utils.WriteFile(j, twitterFilename)
+	// // save json
+	// j, _ := json.Marshal(savedTweetIds)
+	// utils.WriteFile(j, twitterFilename)
 	return
 }
 
-func (tc TwitterClient) RetrieveByCommand(cmdTxt string) (mbs MessageBlocks, err error) { // /twt listname limit
-	var limit int
+func (tc TwitterClient) RetrieveByCommand(cmdTxt string) (mbList [][]MessageBlock, err error) { // /twt listname limit
+	var leastLikes int
 	var listName, numStr string
 	var fields []string = strings.Fields(cmdTxt)
 	listName = fields[0]
 	numStr = fields[1]
-	limit, _ = strconv.Atoi(numStr)
-	mbs, _, err = tc.retrieveTweets(listName, limit)
+	leastLikes, _ = strconv.Atoi(numStr)
+	mbList, err = tc.retrieveTweets(listName, leastLikes)
 	return
 }
 
-func (tc TwitterClient) retrieveTweets(listName string, limit int) (mbs MessageBlocks, qualifiedTweetIds []int, err error) {
+func (tc TwitterClient) retrieveTweets(listName string, leastLikes int) (mbList [][]MessageBlock, err error) {
 	var tweets []ListTweet = tc.GetListContent(listName)
 
 	// sort "tweets" base on scores
@@ -151,62 +158,72 @@ func (tc TwitterClient) retrieveTweets(listName string, limit int) (mbs MessageB
 	})
 
 	var mbarr []MessageBlock
+	var savedTweetIds []int
+	json.Unmarshal(utils.ReadFile(twitterFilename), &savedTweetIds)
 	for _, tweet := range tweets {
-		if tweet.Favorite_Count >= limit {
-			qualifiedTweetIds = append(qualifiedTweetIds, tweet.Id)
+		var exist bool = false
+		for _, savedTweetId := range savedTweetIds {
+			if tweet.Id == savedTweetId {
+				exist = true
+				break
+			}
+		}
+		if exist {
+			continue
+		}
+		if tweet.Favorite_Count >= leastLikes || tweet.Retweeted_Status != nil && tweet.Retweeted_Status.Favorite_Count >= leastLikes {
+			// if tweet.Favorite_Count >= limit {
+			savedTweetIds = append(savedTweetIds, tweet.Id)
 			mbarr, err = tc.formatTweet(tweet)
 			if err != nil {
 				return
 			}
-			mbs.Blocks = append(mbs.Blocks, mbarr...)
-		} else if tweet.Retweeted_Status != nil && tweet.Retweeted_Status.Favorite_Count >= limit {
-			qualifiedTweetIds = append(qualifiedTweetIds, tweet.Id)
-			mbarr, err = tc.formatTweet(tweet)
-			if err != nil {
-				return
-			}
-			mbs.Blocks = append(mbs.Blocks, mbarr...)
+			mbList = append(mbList, mbarr)
 		}
 	}
-
+	// save json
+	j, _ := json.Marshal(savedTweetIds)
+	utils.WriteFile(j, twitterFilename)
 	return
 }
 
 func (tc TwitterClient) formatTweet(tweet ListTweet) (mbarr []MessageBlock, err error) {
-	var txt, imageUrl string
+	mbarr = append(mbarr, MessageBlock{Type: "divider"})
+	var txt string
 	if tweet.Retweeted_Status != nil { // if it's a retweet
-		txt = fmt.Sprintf(
-			`<https://twitter.com/%s|@%s> RT:
-<https://twitter.com/%s|@%s>: %s
-[<https://twitter.com/%s/status/%s|tweet>] retweets: *%d*, likes: *%d*`,
-			tweet.User.Screen_Name, tweet.User.Screen_Name, tweet.Retweeted_Status.User.Screen_Name, tweet.Retweeted_Status.User.Screen_Name, tweet.Retweeted_Status.Text,
-			tweet.User.Screen_Name, tweet.Id_Str, tweet.Retweeted_Status.Retweet_Count, tweet.Retweeted_Status.Favorite_Count,
-		)
+		txt = fmt.Sprintf(`<https://twitter.com/%s|@%s> RT:`, tweet.User.Screen_Name, tweet.User.Screen_Name)
+		mbarr = append(mbarr, sc.CreateTextBlock(txt, "mrkdwn", ""))
+
+		txt = fmt.Sprintf(`<https://twitter.com/%s|@%s>: %s`, tweet.Retweeted_Status.User.Screen_Name, tweet.Retweeted_Status.User.Screen_Name, tweet.Retweeted_Status.Text)
+		mbarr = append(mbarr, sc.CreateTextBlock(txt, "mrkdwn", ""))
+
+		txt = fmt.Sprintf(`[<https://twitter.com/%s/status/%s|tweet>] retweets: *%d*, likes: *%d*`, tweet.User.Screen_Name, tweet.Id_Str, tweet.Retweeted_Status.Retweet_Count, tweet.Retweeted_Status.Favorite_Count)
+		mbarr = append(mbarr, sc.CreateTextBlock(txt, "mrkdwn", ""))
+		for _, media := range tweet.Retweeted_Status.Extended_Entities.Media {
+			var mb MessageBlock = sc.CreateImageBlock(media.Media_Url_Https, "")
+			mbarr = append(mbarr, mb)
+			if media.Type == "photo" {
+				txt = txt + " [pic]"
+			} else if media.Type == "video" {
+				txt = txt + " [vid]"
+			}
+		}
 	} else {
-		txt = fmt.Sprintf(
-			`<https://twitter.com/%s|@%s>: %s
-[<https://twitter.com/%s/status/%s|tweet>] retweets: *%d*, likes: *%d*`,
-			tweet.User.Screen_Name, tweet.User.Screen_Name, tweet.Text,
-			tweet.User.Screen_Name, tweet.Id_Str, tweet.Retweet_Count, tweet.Favorite_Count,
-		)
-	}
-	var medias []TweetMedia
-	if len(tweet.Extended_Entities.Media) > 0 {
-		medias = tweet.Extended_Entities.Media
-	} else if tweet.Retweeted_Status != nil && len(tweet.Retweeted_Status.Extended_Entities.Media) > 0 {
-		medias = tweet.Retweeted_Status.Extended_Entities.Media
-	}
-	for _, media := range medias {
-		imageUrl = media.Media_Url_Https
-		if media.Type == "photo" {
-			txt = txt + " [pic]"
-		} else if media.Type == "video" {
-			txt = txt + " [vid]"
+		txt = fmt.Sprintf(`<https://twitter.com/%s|@%s>: %s`, tweet.User.Screen_Name, tweet.User.Screen_Name, tweet.Text)
+		mbarr = append(mbarr, sc.CreateTextBlock(txt, "mrkdwn", ""))
+
+		txt = fmt.Sprintf(`[<https://twitter.com/%s/status/%s|tweet>] retweets: *%d*, likes: *%d*`, tweet.User.Screen_Name, tweet.Id_Str, tweet.Retweet_Count, tweet.Favorite_Count)
+		mbarr = append(mbarr, sc.CreateTextBlock(txt, "mrkdwn", ""))
+		for _, media := range tweet.Extended_Entities.Media {
+			var mb MessageBlock = sc.CreateImageBlock(media.Media_Url_Https, "")
+			mbarr = append(mbarr, mb)
+			if media.Type == "photo" {
+				txt = txt + " [pic]"
+			} else if media.Type == "video" {
+				txt = txt + " [vid]"
+			}
 		}
 	}
-	var tweetBlock MessageBlock = sc.CreateTextBlock(txt, "mrkdwn", imageUrl)
-	mbarr = append(mbarr, MessageBlock{Type: "divider"})
-	mbarr = append(mbarr, tweetBlock)
 	return
 }
 
@@ -214,5 +231,8 @@ func (tc TwitterClient) GetListContent(listName string) (tweets []ListTweet) {
 	var url string = fmt.Sprintf(listEndpoint, TweetLists[listName])
 	var respJson []byte = tc.SendHttpRequest(url, "v1")
 	_ = json.Unmarshal(respJson, &tweets)
+	if flag.Lookup("test.v") != nil { // if in test mode
+		utils.WriteFile(respJson, "data-samples/list-statuses.json")
+	}
 	return
 }
