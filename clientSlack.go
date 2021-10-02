@@ -3,7 +3,9 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
+	"os"
 )
 
 type SlackClient struct{}
@@ -42,25 +44,34 @@ type MessageBlocks struct {
 }
 
 type MessageBlock struct {
-	Type        string          `json:"type,omitempty"` // section / divider / actions / image
-	Text        *ElementText    `json:"text,omitempty"`
-	Value       string          `json:"value,omitempty"`
-	ActionId    string          `json:"action_id,omitempty"`
-	Elements    []Element       `json:"elements,omitempty"`
-	Placeholder *Placeholder    `json:"placeholder,omitempty"`
-	ImageUrl    string          `json:"image_url,omitempty"`
-	AltText     string          `json:"alt_text,omitempty"`
-	Accessory   *ImageAccessory `json:"accessory,omitempty"`
-	Title       *Placeholder    `json:"title,omitempty"`
+	Type        string           `json:"type,omitempty"` // section / divider / actions / image
+	Text        *ElementText     `json:"text,omitempty"`
+	Value       string           `json:"value,omitempty"`
+	ActionId    string           `json:"action_id,omitempty"`
+	Elements    []Element        `json:"elements,omitempty"`
+	Placeholder *Placeholder     `json:"placeholder,omitempty"`
+	ImageUrl    string           `json:"image_url,omitempty"`
+	AltText     string           `json:"alt_text,omitempty"`
+	Accessory   *Accessory       `json:"accessory,omitempty"`
+	Title       *Placeholder     `json:"title,omitempty"`
+	Element     *CheckboxElement `json:"element,omitempty"`
+	Label       *ElementText     `json:"label,omitempty"`
 }
 
-type ImageAccessory struct {
-	Type     string `json:"type,omitempty"`
-	ImageUrl string `json:"image_url,omitempty"`
-	AltText  string `json:"alt_text,omitempty"`
+type CheckboxElement struct {
+	Type     string    `json:"type,omitempty"`
+	Options  []Element `json:"options,omitempty"`
+	ActionId string    `json:"action_id,omitempty"`
+}
+type Accessory struct {
+	Type     string       `json:"type,omitempty"`
+	ImageUrl string       `json:"image_url,omitempty"`
+	AltText  string       `json:"alt_text,omitempty"`
+	Text     *ElementText `json:"text,omitempty"`
+	Value    string       `json:"value,omitempty"`
+	ActionId string       `json:"action_id,omitempty"`
 }
 type Element struct {
-	Test     *Attachment `json:"test,omitempty"`
 	Type     string      `json:"type,omitempty"`
 	Text     ElementText `json:"text,omitempty"`
 	Value    string      `json:"value,omitempty"`
@@ -74,8 +85,9 @@ type Placeholder struct {
 }
 
 type ElementText struct {
-	Type string `json:"type,omitempty"` // plain_text /
-	Text string `json:"text,omitempty"`
+	Type  string `json:"type,omitempty"` // plain_text /
+	Text  string `json:"text,omitempty"`
+	Emoji bool   `json:"emoji,omitempty"`
 }
 
 func (sc SlackClient) SendMarkdownText(text, url, imageUrl string) (err error) {
@@ -87,6 +99,7 @@ func (sc SlackClient) SendPlainText(text, url string) (err error) {
 }
 
 func (sc SlackClient) CreateTextBlocks(text, textType, imageUrl string) MessageBlocks {
+	// textType: "mrkdwn" / "plain_text"
 	return MessageBlocks{
 		Blocks: []MessageBlock{
 			sc.CreateTextBlock(text, textType, imageUrl),
@@ -102,6 +115,7 @@ func (sc SlackClient) CreateImageBlock(imageUrl, altText string) (mb MessageBloc
 	}
 	return
 }
+
 func (sc SlackClient) CreateTextBlock(text, textType, imageUrl string) (mb MessageBlock) {
 	if imageUrl == "" {
 		mb = MessageBlock{
@@ -118,7 +132,7 @@ func (sc SlackClient) CreateTextBlock(text, textType, imageUrl string) (mb Messa
 				Type: textType,
 				Text: text,
 			},
-			Accessory: &ImageAccessory{
+			Accessory: &Accessory{
 				Type:     "image",
 				ImageUrl: imageUrl,
 				AltText:  text,
@@ -143,5 +157,23 @@ func (sc SlackClient) SendBlocks(msgBlocks MessageBlocks, url string) (err error
 	if err != nil {
 		return
 	}
-	return utils.SendBytes(reqBody, url)
+	if flag.Lookup("test.v") == nil { // if this is not in test mode
+		return utils.SendBytes(reqBody, url, nil)
+	} else { // if is test mode
+		return utils.SendBytes(reqBody, os.Getenv("SlackWebHookUrlTest"), nil)
+	}
+}
+
+func (sc SlackClient) DeleteMsg(channelID, ts string) (err error) {
+	var url string = "https://slack.com/api/chat.delete"
+	var headers = [][]string{{"Authorization", fmt.Sprintf("Bearer %s", os.Getenv("SlackUserOAuthToken"))}}
+	var reqBody []byte
+	reqBody, _ = json.Marshal(struct {
+		Channel string `json:"channel,omitempty"`
+		Ts      string `json:"ts,omitempty"`
+	}{
+		Channel: channelID,
+		Ts:      ts,
+	})
+	return utils.SendBytes(reqBody, url, headers)
 }

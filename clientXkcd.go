@@ -10,7 +10,7 @@ import (
 // XKCD
 type XKCDClient struct{}
 
-const xkcdFilename string = "ids-xkcd.json"
+const xkcdFilename string = "ids/ids-xkcd.json"
 
 type xkcdJSON struct {
 	Month      string `json:"month,omitempty"`
@@ -36,7 +36,7 @@ func (xk XKCDClient) AutoRetrieveNew() (err error) {
 	if err != nil {
 		return
 	}
-	err = sc.SendBlocks(mbs, os.Getenv("WebHookUrlCartoons"))
+	err = sc.SendBlocks(mbs, os.Getenv("SlackWebHookUrlCartoons"))
 	if err != nil {
 		return
 	}

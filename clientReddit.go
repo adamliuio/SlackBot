@@ -4,7 +4,6 @@ package main
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"os"
 	"sort"
@@ -15,7 +14,7 @@ import (
 	"github.com/turnage/graw/reddit"
 )
 
-const redditFilename string = "ids-reddit.json"
+const redditFilename string = "ids/ids-reddit.json"
 
 type RedditClient struct{}
 
@@ -29,6 +28,9 @@ func (rc RedditClient) AutoRetrieveNew() (err error) {
 			return
 		}
 		err = rc.sendPosts(harvest.Posts, subReddit)
+		if err != nil {
+			return
+		}
 	}
 	return
 }
@@ -98,11 +100,7 @@ func (rc RedditClient) sendPosts(posts []*reddit.Post, subReddit string) (err er
 			}
 
 			var mbs = MessageBlocks{Blocks: mbarr}
-			if flag.Lookup("test.v") == nil && Hostname != "MacBook-Pro.local" {
-				err = sc.SendBlocks(mbs, os.Getenv("WebHookUrlReddit")) // send the new and not published stories to slack #hacker-news
-			} else {
-				err = sc.SendBlocks(mbs, os.Getenv("WebHookUrlTest"))
-			}
+			err = sc.SendBlocks(mbs, os.Getenv("SlackWebHookUrlReddit")) // send the new and not published stories to slack #hacker-news
 			if err != nil {
 				return
 			}
@@ -136,7 +134,7 @@ func (rc RedditClient) createVideoMsgBlock(post *reddit.Post) (mbs []MessageBloc
 				Type: "mrkdwn",
 				Text: fmt.Sprintf("*<%s|%s>*\nups:*%d*, sub: *r/%s*\n[video]", videoLink, post.Title, post.Ups, post.Subreddit),
 			},
-			Accessory: &ImageAccessory{
+			Accessory: &Accessory{
 				Type:     "image",
 				ImageUrl: post.Thumbnail,
 				AltText:  post.Title,

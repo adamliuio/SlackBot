@@ -2,12 +2,16 @@ package main
 
 import (
 	"flag"
+	"os"
 	"time"
 )
 
 type Routines struct{}
 
 func (rou Routines) StartAll() {
+	if os.Getenv("DoNotAutoRetrieve") == "yes" {
+		return
+	}
 	if flag.Lookup("test.v") == nil { // if this is not in test mode
 		var i int = 0
 		for {

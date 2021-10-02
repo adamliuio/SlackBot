@@ -1,18 +1,35 @@
 package main
 
 type SCPayload struct { // Shortcut Payload
-	Type                  string     `json:"type,omitempty"`
-	CallbackId            string     `json:"callback_id,omitempty"`
-	User                  *SCUser    `json:"user,omitempty"`
-	Is_Enterprise_Install string     `json:"is_enterprise_install,omitempty"`
-	ActionTs              string     `json:"action_ts,omitempty"`
-	Team                  *SCTeam    `json:"team,omitempty"`
-	Token                 string     `json:"token,omitempty"`
-	TriggerId             string     `json:"trigger_id,omitempty"`
-	MessageTs             string     `json:"message_ts,omitempty"`   // empty if the shortcut is global
-	Message               *SCMessage `json:"message,omitempty"`      // empty if the shortcut is global
-	ResponseUrl           string     `json:"response_url,omitempty"` // empty if the shortcut is global
-	Channel               *SCChannel `json:"channel,omitempty"`      // empty if the shortcut is global
+	Type                  string             `json:"type,omitempty"`
+	CallbackId            string             `json:"callback_id,omitempty"`
+	User                  *SCUser            `json:"user,omitempty"`
+	Is_Enterprise_Install string             `json:"is_enterprise_install,omitempty"`
+	ActionTs              string             `json:"action_ts,omitempty"`
+	Container             SCPayloadContainer `json:"container,omitempty"`
+	Team                  *SCTeam            `json:"team,omitempty"`
+	Token                 string             `json:"token,omitempty"`
+	TriggerId             string             `json:"trigger_id,omitempty"`
+	Message               *SCMessage         `json:"message,omitempty"`      // empty if the shortcut is global
+	ResponseUrl           string             `json:"response_url,omitempty"` // empty if the shortcut is global
+	Channel               *SCChannel         `json:"channel,omitempty"`      // empty if the shortcut is global
+	Actions               []SCPayloadAction  `json:"actions,omitempty"`
+}
+
+type SCPayloadAction struct {
+	Action_Id string      `json:"action_id,omitempty"`
+	Block_Id  string      `json:"block_id,omitempty"`
+	Text      ElementText `json:"text,omitempty"`
+	Value     string      `json:"value,omitempty"`
+	Type      string      `json:"type,omitempty"`
+	Action_Ts string      `json:"action_ts,omitempty"`
+}
+
+type SCPayloadContainer struct {
+	Type         string `json:"type,omitempty"`
+	Channel_Id   string `json:"channel_id,omitempty"`
+	MessageTs    string `json:"message_ts,omitempty"`
+	Is_Ephemeral bool   `json:"is_ephemeral,omitempty"`
 }
 
 type SCMessage struct {

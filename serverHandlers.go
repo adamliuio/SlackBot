@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 )
 
 type Middlewares struct{}
@@ -17,40 +20,23 @@ func (mw Middlewares) Home(c *fiber.Ctx) error {
 	return c.SendString("Hello, World 👋!")
 }
 
-func (mw Middlewares) Shortcuts(c *fiber.Ctx) error {
-	log.Println("incoming")
-
-	type T struct {
+func (mw Middlewares) Shortcuts(c *fiber.Ctx) (err error) {
+	t := new(struct {
 		Payload string `json:"payload,omitempty"`
-	}
-	t := new(T)
+	})
 	if err := c.BodyParser(t); err != nil {
 		return err
 	}
 
 	var payload SCPayload
 	json.Unmarshal([]byte(t.Payload), &payload)
-	log.Printf("t: %+v\n\n", t)
-	log.Printf("payloadt: %+v\n\n", payload)
-	var incomingData []byte = c.Body()
-	log.Printf("c.Body(): %+v\n\n", string(incomingData))
-
-	var mbs = MessageBlocks{
-		Blocks: []MessageBlock{
-			{
-				Type: "section",
-				Text: &ElementText{
-					Type: "mrkdwn",
-					Text: "This is a mrkdwn section block :ghost: *this is bold*, and ~this is crossed out~, and <https://google.com|this is a link>",
-				},
-			},
-		},
+	if payload.Actions[0].Action_Id == "delete-todo-button" {
+		err = sc.DeleteMsg(payload.Container.Channel_Id, payload.Container.MessageTs)
+		if err != nil {
+			return
+		}
 	}
-
-	_ = mbs
-
-	return c.SendString("pong 👋!")
-	// return c.JSON(mbs)
+	return
 }
 
 func (mw Middlewares) Ping(c *fiber.Ctx) error { return c.SendString("pong 👋!") }
@@ -70,13 +56,14 @@ func (mw Middlewares) Commands(c *fiber.Ctx) error {
 	if err := c.BodyParser(cmd); err != nil {
 		return err
 	}
-	// log.Printf("cmd: %+v\n", cmd)
 
 	switch cmd.Command {
-	case "/commands": // use "/commands" to trigger this
+	case "/commands":
 		return c.JSON(mw.commandCommands())
 	case "/hn":
-		return c.JSON(mw.commandHn(cmd))
+		return c.JSON(mw.commandHn(cmd)) // "/hn top 10"
+	case "/todo":
+		return mw.commandToDo(cmd) // "/todo do something"
 	case "/twt":
 		return c.JSON(mw.commandTwitter(cmd)) // /twt Makers 5
 	case "/xkcd":
@@ -87,13 +74,42 @@ func (mw Middlewares) Commands(c *fiber.Ctx) error {
 	return c.SendString("pong 👋!")
 }
 
-func (mw Middlewares) commandCommands() MessageBlocks { // use "/commands" to trigger this
+func (mw Middlewares) commandCommands() (mbs MessageBlocks) {
 	var cmdStr string = "Your friendly commands reminder:\n📺 */command*: returns all your commands for you to see\n📰 */hn* (/hn top 10-20) returns a list of buttons for retrieving buttons to interact with Hacker News."
-	var mbs MessageBlocks = sc.CreateTextBlocks(cmdStr, "mrkdwn", "")
+	mbs = sc.CreateTextBlocks(cmdStr, "mrkdwn", "")
 	return mbs
 }
 
-func (mw Middlewares) commandHn(cmd *SlashCommand) (mbs MessageBlocks) { // "/hn top 10"
+func (mw Middlewares) commandToDo(cmd *SlashCommand) error {
+	var todoStrs []string = strings.Split(cmd.Text, "\n")
+	for _, str := range todoStrs {
+		var mbs MessageBlocks
+		mbs.Blocks = append(mbs.Blocks, MessageBlock{
+			Type: "section",
+			Text: &ElementText{
+				Type: "mrkdwn",
+				Text: str,
+			},
+			Accessory: &Accessory{
+				Type: "button",
+				Text: &ElementText{
+					Type:  "plain_text",
+					Text:  "Done",
+					Emoji: true,
+				},
+				Value:    uuid.New().String(),
+				ActionId: "delete-todo-button",
+			},
+		})
+		var err error = sc.SendBlocks(mbs, os.Getenv("SlackWebHookUrlTodo"))
+		if err != nil {
+			log.Panic(err)
+		}
+	}
+	return nil
+}
+
+func (mw Middlewares) commandHn(cmd *SlashCommand) (mbs MessageBlocks) {
 	var err error
 	mbs, err = hn.RetrieveByCommand(cmd.Text)
 	if err != nil {
@@ -102,20 +118,16 @@ func (mw Middlewares) commandHn(cmd *SlashCommand) (mbs MessageBlocks) { // "/hn
 	return mbs
 }
 
-func (mw Middlewares) commandTwitter(cmd *SlashCommand) (mbs MessageBlocks) { // "/twt"
+func (mw Middlewares) commandTwitter(cmd *SlashCommand) (mbs MessageBlocks) {
 	var err error
-	var mbList [][]MessageBlock
-	mbList, err = tc.RetrieveByCommand(cmd.Text)
-	for _, mb := range mbList {
-		mbs.Blocks = append(mbs.Blocks, mb...)
-	}
+	mbs, err = tc.RetrieveByCommand(cmd.Text)
 	if err != nil {
 		log.Println(err)
 	}
 	return mbs
 }
 
-func (mw Middlewares) commandXkcd(cmd *SlashCommand) (mbs MessageBlocks) { // "/xkcd 123"
+func (mw Middlewares) commandXkcd(cmd *SlashCommand) (mbs MessageBlocks) {
 	var err error
 	mbs, err = xk.GetStoryById(cmd.Text)
 	if err != nil {

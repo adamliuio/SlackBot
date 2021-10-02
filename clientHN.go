@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"log"
 	"net/url"
@@ -38,7 +37,7 @@ type HNItem struct {
 	Parts       []int  // A list of related pollopts, in display order.
 }
 
-const hnFilename string = "ids-hn.json"
+const hnFilename string = "ids/ids-hn.json"
 
 func (hn HNClient) AutoRetrieveNew() (err error) {
 	fmt.Println(time.Now().Format("2006-01-02 15:04:05"), ":", "Auto retrieving Hacker news posts... ")
@@ -114,22 +113,20 @@ func (hn HNClient) _retrieveNew(autoHNPostType string) (err error) {
 	for i, item = range storiesItemsList {
 		savedStoriesIds = append(savedStoriesIds, item.Id)
 	}
-	j, _ := json.Marshal(savedStoriesIds)
-	utils.WriteFile(j, hnFilename)
-
 	var mbs MessageBlocks
 	for i := 0; i < len(storiesItemsList); i++ {
 		mbs, err = hn.hnStoriesToBlocks("", storiesItemsList[i:i+1], true)
 		if err != nil {
 			return
 		}
-		if flag.Lookup("test.v") == nil && Hostname != "MacBook-Pro.local" {
-			err = sc.SendBlocks(mbs, os.Getenv("WebHookUrlHN")) // send the new and not published stories to slack #hacker-news
-		} else {
-			err = sc.SendBlocks(mbs, os.Getenv("WebHookUrlTest"))
+		err = sc.SendBlocks(mbs, os.Getenv("SlackWebHookUrlHN")) // send the new and not published stories to slack #hacker-news
+		if err != nil {
+			return
 		}
 	}
 	fmt.Println("Sent.")
+	j, _ := json.Marshal(savedStoriesIds)
+	utils.WriteFile(j, hnFilename)
 	return
 }
 

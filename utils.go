@@ -51,13 +51,19 @@ func (u Utils) RetrieveBytes(url string, headers [][]string) (body []byte) {
 	return
 }
 
-func (u Utils) SendBytes(reqBody []byte, url string) (err error) {
+func (u Utils) SendBytes(reqBody []byte, url string, additionaleaders [][]string) (err error) {
 	var req *http.Request
 	req, err = http.NewRequest(http.MethodPost, url, bytes.NewBuffer(reqBody))
 	if err != nil {
 		return
 	}
-	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Content-Type", "application/json; charset=utf-8")
+	if len(additionaleaders) > 0 {
+		for _, header := range additionaleaders {
+			req.Header.Add(header[0], header[1])
+		}
+	}
+
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -69,7 +75,12 @@ func (u Utils) SendBytes(reqBody []byte, url string) (err error) {
 	if err != nil {
 		return
 	}
-	if buf.String() != "ok" && buf.String() != `{"ok":true}` {
+
+	var slackResponse struct {
+		Ok bool `json:"ok,omitempty"`
+	}
+	json.Unmarshal(buf.Bytes(), &slackResponse)
+	if buf.String() != "ok" && !slackResponse.Ok {
 		err = fmt.Errorf("non-ok response returned from Slack, message: %s", buf.String())
 		return
 	}
@@ -114,7 +125,7 @@ func (u Utils) dealWithError(err error, fn, url string, ignoreErr bool) {
 	if err != nil {
 		if ignoreErr {
 			log.Println(err)
-			sc.SendPlainText(fmt.Sprintf(`Error: %s\nwhen downloading "%s"\nfrom "%s"`, err.Error(), fn, url), os.Getenv("WebHookUrlTest"))
+			sc.SendPlainText(fmt.Sprintf(`Error: %s\nwhen downloading "%s"\nfrom "%s"`, err.Error(), fn, url), os.Getenv("SlackWebHookUrlTest"))
 		} else {
 			log.Panic(err)
 		}

@@ -12,7 +12,7 @@ func TestRetrieveNew(t *testing.T) {
 	hn.AutoRetrieveNew()
 }
 
-const f string = "ids-reddit.json"
+const f string = "ids/ids-reddit.json"
 
 var sl []string
 

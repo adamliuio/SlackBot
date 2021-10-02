@@ -5,6 +5,7 @@ import (
 	b64 "encoding/base64"
 	"encoding/json"
 	"flag"
+	"os"
 	"testing"
 )
 
@@ -82,18 +83,18 @@ func TestListContentMarshal(t *testing.T) {
 	}
 }
 
-// func TestRetrieveByCommand(t *testing.T) {
-// 	var msgBlocks MessageBlocks
-// 	var err error
-// 	msgBlocks, err = tc.RetrieveByCommand("Makers 500")
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	err = sc.SendBlocks(msgBlocks, os.Getenv("WebHookUrlTest"))
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// }
+func TestRetrieveByCommand(t *testing.T) {
+	var msgBlocks MessageBlocks
+	var err error
+	msgBlocks, err = tc.RetrieveByCommand("Makers 5000")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = sc.SendBlocks(msgBlocks, os.Getenv("SlackWebHookUrlTest"))
+	if err != nil {
+		t.Fatal(err)
+	}
+}
 
 func TestTest(t *testing.T) {
 	t.Logf("%+v\n", flag.Lookup("test.v") == nil) // not in test mode

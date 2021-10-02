@@ -14,7 +14,7 @@ func TestXKSend(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = sc.SendBlocks(mbs, os.Getenv("WebHookUrlTest"))
+	err = sc.SendBlocks(mbs, os.Getenv("SlackWebHookUrlTest"))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -20,7 +20,7 @@ const tweetEndpoint string = "https://api.twitter.com/2/tweets?ids=%s?tweet.fiel
 const usersByUsernameEndpoint string = "https://api.twitter.com/2/users/by?usernames=%s&user.fields=created_at,description,entities,id,location,name,pinned_tweet_id,profile_image_url,protected,url,username,verified,withheld&expansions=pinned_tweet_id&tweet.fields=attachments,author_id,conversation_id,created_at,entities,geo,id,in_reply_to_user_id,lang,possibly_sensitive,referenced_tweets,source,text,withheld"
 const usersByIdEndpoint string = "https://api.twitter.com/2/users?ids=%s&user.fields=created_at,description,entities,id,location,name,pinned_tweet_id,profile_image_url,protected,url,username,verified,withheld&expansions=pinned_tweet_id&tweet.fields=attachments,author_id,conversation_id,created_at,entities,geo,id,in_reply_to_user_id,lang,possibly_sensitive,referenced_tweets,source,text,withheld"
 const listEndpoint string = "https://api.twitter.com/1.1/lists/statuses.json?list_id=%s&count=1000"
-const twitterFilename string = "ids-twitter.json"
+const twitterFilename string = "ids/ids-twitter.json"
 
 var TweetLists = map[string]string{
 	"Makers":        "1229215345526722560",
@@ -90,14 +90,12 @@ func (tc TwitterClient) oauth1Request(url string) (body []byte) {
 }
 
 func (tc TwitterClient) AutoRetrieveNew() (err error) {
-	// var savedTweetIds []int
-	// json.Unmarshal(utils.ReadFile(twitterFilename), &savedTweetIds)
 
 	for listName := range TweetLists {
 		var leastLikes int
 		var mbList [][]MessageBlock
 		leastLikes, _ = strconv.Atoi(os.Getenv("AutoTwitterLeaseLikes"))
-		mbList, err = tc.retrieveTweets(listName, leastLikes)
+		mbList, err = tc.retrieveTweets(listName, leastLikes, true)
 		if err != nil {
 			return
 		}
@@ -109,35 +107,45 @@ func (tc TwitterClient) AutoRetrieveNew() (err error) {
 				mbs.Blocks = []MessageBlock{{Type: "header", Text: &ElementText{Type: "plain_text", Text: listName}}}
 			}
 			mbs.Blocks = append(mbs.Blocks, mb...)
-			if flag.Lookup("test.v") == nil { // if this is not in test mode
-				err = sc.SendBlocks(mbs, os.Getenv("WebHookUrlTwitter"))
-			} else { // if is test mode
-				err = sc.SendBlocks(mbs, os.Getenv("WebHookUrlTest"))
+			err = sc.SendBlocks(mbs, os.Getenv("SlackWebHookUrlTwitter"))
+			if err != nil {
+				return
 			}
 		}
-		if err != nil {
-			return
-		}
 	}
-
-	// // save json
-	// j, _ := json.Marshal(savedTweetIds)
-	// utils.WriteFile(j, twitterFilename)
 	return
 }
 
-func (tc TwitterClient) RetrieveByCommand(cmdTxt string) (mbList [][]MessageBlock, err error) { // /twt listname limit
+func (tc TwitterClient) RetrieveByCommand(cmdTxt string) (mbs MessageBlocks, err error) { // /twt listname limit
 	var leastLikes int
 	var listName, numStr string
 	var fields []string = strings.Fields(cmdTxt)
 	listName = fields[0]
 	numStr = fields[1]
 	leastLikes, _ = strconv.Atoi(numStr)
-	mbList, err = tc.retrieveTweets(listName, leastLikes)
+	var mbList [][]MessageBlock
+	mbList, err = tc.retrieveTweets(listName, leastLikes, false)
+	if err != nil {
+		return
+	}
+	var i int
+	var mb []MessageBlock
+	for i, mb = range mbList {
+		if i == 0 {
+			mbs.Blocks = []MessageBlock{{Type: "header", Text: &ElementText{Type: "plain_text", Text: listName}}}
+		}
+		mbs.Blocks = append(mbs.Blocks, mb...)
+		if err != nil {
+			return
+		}
+		if i == 1 {
+			break
+		}
+	}
 	return
 }
 
-func (tc TwitterClient) retrieveTweets(listName string, leastLikes int) (mbList [][]MessageBlock, err error) {
+func (tc TwitterClient) retrieveTweets(listName string, leastLikes int, saveIDs bool) (mbList [][]MessageBlock, err error) {
 	var tweets []ListTweet = tc.GetListContent(listName)
 
 	// sort "tweets" base on scores
@@ -172,7 +180,6 @@ func (tc TwitterClient) retrieveTweets(listName string, leastLikes int) (mbList 
 			continue
 		}
 		if tweet.Favorite_Count >= leastLikes || tweet.Retweeted_Status != nil && tweet.Retweeted_Status.Favorite_Count >= leastLikes {
-			// if tweet.Favorite_Count >= limit {
 			savedTweetIds = append(savedTweetIds, tweet.Id)
 			mbarr, err = tc.formatTweet(tweet)
 			if err != nil {
@@ -182,8 +189,10 @@ func (tc TwitterClient) retrieveTweets(listName string, leastLikes int) (mbList 
 		}
 	}
 	// save json
-	j, _ := json.Marshal(savedTweetIds)
-	utils.WriteFile(j, twitterFilename)
+	if saveIDs {
+		j, _ := json.Marshal(savedTweetIds)
+		utils.WriteFile(j, twitterFilename)
+	}
 	return
 }
 

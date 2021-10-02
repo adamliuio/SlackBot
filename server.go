@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"net/http"
 	"os"
 
@@ -40,5 +41,9 @@ func server() {
 		}))
 	}
 
-	app.Listen(os.Getenv("ServerListenPort"))
+	if flag.Lookup("test.v") == nil { // if this is not in test mode
+		app.Listen(os.Getenv("ServerListenPort"))
+	} else { // if is test mode
+		app.Listen(os.Getenv("ServerListenDevPort"))
+	}
 }
