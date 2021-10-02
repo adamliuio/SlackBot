@@ -14,21 +14,10 @@ import (
 
 type Utils struct{}
 
-func (u Utils) GetItemById(formatStr string, id int) (item HNItem) {
-	var url string = fmt.Sprintf(formatStr, id)
-	var body []byte = u.RetrieveBytes(url, nil)
-
-	if err := json.Unmarshal(body, &item); err != nil {
-		log.Panic(err)
-	}
-	return
-}
-
-func (u Utils) RetrieveBytes(url string, headers [][]string) (body []byte) {
+func (u Utils) HttpRequest(requestMethod string, reqBody []byte, url string, headers [][]string) (respBody []byte, err error) {
 	var req *http.Request
 	var resp *http.Response
-	var err error
-	req, err = http.NewRequest(http.MethodGet, url, nil)
+	req, err = http.NewRequest(requestMethod, url, bytes.NewBuffer(reqBody))
 	if err != nil {
 		return
 	}
@@ -37,53 +26,20 @@ func (u Utils) RetrieveBytes(url string, headers [][]string) (body []byte) {
 			req.Header.Add(header[0], header[1])
 		}
 	}
+
 	client := &http.Client{}
 	resp, err = client.Do(req)
 	if err != nil {
 		return
 	}
-	defer resp.Body.Close()
 
-	body, err = ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Panic(err)
-	}
-	return
-}
-
-func (u Utils) SendBytes(reqBody []byte, url string, additionaleaders [][]string) (err error) {
-	var req *http.Request
-	req, err = http.NewRequest(http.MethodPost, url, bytes.NewBuffer(reqBody))
-	if err != nil {
-		return
-	}
-	req.Header.Add("Content-Type", "application/json; charset=utf-8")
-	if len(additionaleaders) > 0 {
-		for _, header := range additionaleaders {
-			req.Header.Add(header[0], header[1])
-		}
-	}
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return
-	}
-
-	buf := new(bytes.Buffer)
+	var buf *bytes.Buffer = new(bytes.Buffer)
 	_, err = buf.ReadFrom(resp.Body)
 	if err != nil {
 		return
 	}
 
-	var slackResponse struct {
-		Ok bool `json:"ok,omitempty"`
-	}
-	json.Unmarshal(buf.Bytes(), &slackResponse)
-	if buf.String() != "ok" && !slackResponse.Ok {
-		err = fmt.Errorf("non-ok response returned from Slack, message: %s", buf.String())
-		return
-	}
+	respBody = buf.Bytes()
 	return
 }
 

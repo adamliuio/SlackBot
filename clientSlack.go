@@ -158,9 +158,9 @@ func (sc SlackClient) SendBlocks(msgBlocks MessageBlocks, url string) (err error
 		return
 	}
 	if flag.Lookup("test.v") == nil { // if this is not in test mode
-		return utils.SendBytes(reqBody, url, nil)
+		return sc.SendBytes(reqBody, url, nil)
 	} else { // if is test mode
-		return utils.SendBytes(reqBody, os.Getenv("SlackWebHookUrlTest"), nil)
+		return sc.SendBytes(reqBody, os.Getenv("SlackWebHookUrlTest"), nil)
 	}
 }
 
@@ -175,5 +175,26 @@ func (sc SlackClient) DeleteMsg(channelID, ts string) (err error) {
 		Channel: channelID,
 		Ts:      ts,
 	})
-	return utils.SendBytes(reqBody, url, headers)
+	return sc.SendBytes(reqBody, url, headers)
+}
+
+func (sc SlackClient) SendBytes(reqBody []byte, url string, additionalHeaders [][]string) (err error) {
+	var headers = [][]string{
+		{"Content-Type", "application/json; charset=utf-8"},
+	}
+	if len(additionalHeaders) > 0 {
+		headers = append(headers, additionalHeaders...)
+	}
+	var respData []byte
+	respData, err = utils.HttpRequest("POST", reqBody, url, headers)
+
+	var slackResponse struct {
+		Ok bool `json:"ok,omitempty"`
+	}
+	json.Unmarshal(respData, &slackResponse)
+	if string(respData) != "ok" && !slackResponse.Ok {
+		err = fmt.Errorf("non-ok response returned from Slack, message: %s", string(respData))
+		return
+	}
+	return
 }

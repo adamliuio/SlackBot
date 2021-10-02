@@ -47,9 +47,11 @@ func (xk XKCDClient) AutoRetrieveNew() (err error) {
 
 func (xk XKCDClient) RetrieveJsonById(id string) (xkj xkcdJSON, err error) {
 	var fStr string = "https://xkcd.com/%s/info.0.json"
-	var body []byte = utils.RetrieveBytes(fmt.Sprintf(fStr, id), nil)
-	err = json.Unmarshal(body, &xkj)
-	if err != nil {
+	var body []byte
+	if body, err = utils.HttpRequest("GET", nil, fmt.Sprintf(fStr, id), nil); err != nil {
+		return
+	}
+	if err = json.Unmarshal(body, &xkj); err != nil {
 		return
 	}
 	return

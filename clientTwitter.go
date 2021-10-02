@@ -16,7 +16,6 @@ import (
 
 type TwitterClient struct{}
 
-const tweetEndpoint string = "https://api.twitter.com/2/tweets?ids=%s?tweet.fields=attachments,conversation_id,author_id,created_at,entities,geo,id,in_reply_to_user_id,lang,possibly_sensitive,referenced_tweets,source,text,withheld"
 const usersByUsernameEndpoint string = "https://api.twitter.com/2/users/by?usernames=%s&user.fields=created_at,description,entities,id,location,name,pinned_tweet_id,profile_image_url,protected,url,username,verified,withheld&expansions=pinned_tweet_id&tweet.fields=attachments,author_id,conversation_id,created_at,entities,geo,id,in_reply_to_user_id,lang,possibly_sensitive,referenced_tweets,source,text,withheld"
 const usersByIdEndpoint string = "https://api.twitter.com/2/users?ids=%s&user.fields=created_at,description,entities,id,location,name,pinned_tweet_id,profile_image_url,protected,url,username,verified,withheld&expansions=pinned_tweet_id&tweet.fields=attachments,author_id,conversation_id,created_at,entities,geo,id,in_reply_to_user_id,lang,possibly_sensitive,referenced_tweets,source,text,withheld"
 const listEndpoint string = "https://api.twitter.com/1.1/lists/statuses.json?list_id=%s&count=1000"
@@ -38,36 +37,42 @@ func (tc TwitterClient) UnmarshalTweet() (tweet Tweet) {
 	return
 }
 
-func (tc TwitterClient) LookUpTweet(ids []string) (respJson []byte) {
-	var idsString string = ids[0]
-	for _, id := range ids[1:] {
-		idsString = idsString + "," + id
-	}
-	respJson = tc.SendHttpRequest(fmt.Sprintf(tweetEndpoint, idsString), "v2")
-	return
-}
+// func (tc TwitterClient) LookUpTweet(ids []string) (respJson []byte) {
+// 	var idsString string = ids[0]
+// 	for _, id := range ids[1:] {
+// 		idsString = idsString + "," + id
+// 	}
+// 	respJson = tc.SendHttpRequest(fmt.Sprintf(tweetEndpoint, idsString), "v2")
+// 	return
+// }
 
-func (tc TwitterClient) LookUpTwitterUsers(ids []string, idType string) (respJson []byte) {
+func (tc TwitterClient) LookUpTwitterUsers(ids []string, idType string) (respJson []byte, err error) {
 	var idsString string = ids[0]
 	for _, id := range ids[1:] {
 		idsString = idsString + "," + id
 	}
 	if idType == "id" {
-		respJson = tc.SendHttpRequest(fmt.Sprintf(usersByIdEndpoint, idsString), "v2")
+		if respJson, err = tc.SendHttpRequest(fmt.Sprintf(usersByIdEndpoint, idsString), "v2"); err != nil {
+			log.Panic(err)
+		}
 	} else if idType == "username" {
-		respJson = tc.SendHttpRequest(fmt.Sprintf(usersByUsernameEndpoint, idsString), "v2")
+		if respJson, err = tc.SendHttpRequest(fmt.Sprintf(usersByUsernameEndpoint, idsString), "v2"); err != nil {
+			log.Panic(err)
+		}
 	} else {
 		log.Fatalf("id type: %s is wrong.", idType)
 	}
 	return
 }
 
-func (tc TwitterClient) SendHttpRequest(url, version string) (body []byte) {
+func (tc TwitterClient) SendHttpRequest(url, version string) (body []byte, err error) {
 	if version == "v1" {
 		body = tc.oauth1Request(url)
 	} else if version == "v2" {
 		var headers = [][]string{{"Authorization", fmt.Sprintf("Bearer %s", os.Getenv("TwitterBearerToken"))}}
-		body = utils.RetrieveBytes(url, headers)
+		if body, err = utils.HttpRequest("GET", nil, url, headers); err != nil {
+			log.Panic(err)
+		}
 	}
 	return
 }
@@ -146,7 +151,10 @@ func (tc TwitterClient) RetrieveByCommand(cmdTxt string) (mbs MessageBlocks, err
 }
 
 func (tc TwitterClient) retrieveTweets(listName string, leastLikes int, saveIDs bool) (mbList [][]MessageBlock, err error) {
-	var tweets []ListTweet = tc.GetListContent(listName)
+	var tweets []ListTweet
+	if tweets, err = tc.GetListContent(listName); err != nil {
+		return
+	}
 
 	// sort "tweets" base on scores
 	sort.Slice(tweets, func(i, j int) bool {
@@ -181,8 +189,7 @@ func (tc TwitterClient) retrieveTweets(listName string, leastLikes int, saveIDs 
 		}
 		if tweet.Favorite_Count >= leastLikes || tweet.Retweeted_Status != nil && tweet.Retweeted_Status.Favorite_Count >= leastLikes {
 			savedTweetIds = append(savedTweetIds, tweet.Id)
-			mbarr, err = tc.formatTweet(tweet)
-			if err != nil {
+			if mbarr, err = tc.formatTweet(tweet); err != nil {
 				return
 			}
 			mbList = append(mbList, mbarr)
@@ -236,9 +243,12 @@ func (tc TwitterClient) formatTweet(tweet ListTweet) (mbarr []MessageBlock, err 
 	return
 }
 
-func (tc TwitterClient) GetListContent(listName string) (tweets []ListTweet) {
+func (tc TwitterClient) GetListContent(listName string) (tweets []ListTweet, err error) {
 	var url string = fmt.Sprintf(listEndpoint, TweetLists[listName])
-	var respJson []byte = tc.SendHttpRequest(url, "v1")
+	var respJson []byte
+	if respJson, err = tc.SendHttpRequest(url, "v1"); err != nil {
+		return
+	}
 	_ = json.Unmarshal(respJson, &tweets)
 	if flag.Lookup("test.v") != nil { // if in test mode
 		utils.WriteFile(respJson, "data-samples/list-statuses.json")

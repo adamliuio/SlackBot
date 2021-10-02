@@ -54,12 +54,19 @@ func (hn HNClient) _retrieveNew(autoHNPostType string) (err error) {
 
 	var leastScore int
 	leastScore, err = strconv.Atoi(os.Getenv("AutoHNLeaseScore"))
+	if err != nil {
+		return
+	}
 
 	var savedStoriesIds []int
 	_ = json.Unmarshal(utils.ReadFile(hnFilename), &savedStoriesIds)
 
 	var newIdsList []int
-	var _idsList []int = hn.getStoriesIds(autoHNPostType) // get 500 newest ids
+	var _idsList []int
+	_idsList, err = hn.getStoriesIds(autoHNPostType) // get 500 newest ids
+	if err != nil {
+		return
+	}
 
 	for _, newId := range _idsList {
 		var exist bool = false
@@ -157,7 +164,11 @@ func (hn HNClient) getStories(storyType string, storiesRange []int) (storiesItem
 		err = fmt.Errorf(`the <story type> "%s" you put in is invalid, should be one if <top/new/best>`, storyType)
 		return
 	}
-	var newIdsList []int = hn.getStoriesIds(storyType)
+	var newIdsList []int
+	newIdsList, err = hn.getStoriesIds(storyType)
+	if err != nil {
+		return
+	}
 	storiesItemsList = hn.getStoriesItems(newIdsList)
 	sort.Slice(storiesItemsList, func(i, j int) bool {
 		return storiesItemsList[i].Score > storiesItemsList[j].Score
@@ -228,7 +239,7 @@ func (hn HNClient) getStoriesItems(newIdsList []int) (storiesItemsList []HNItem)
 	for _, id := range newIdsList {
 		wg.Add(1)
 		go func(id int) {
-			var hn HNItem = utils.GetItemById(hn.ItemUrlTmplt, id)
+			var hn HNItem = hn.getItemById(hn.ItemUrlTmplt, id)
 			m.Store(id, hn)
 			wg.Done()
 		}(id)
@@ -237,13 +248,30 @@ func (hn HNClient) getStoriesItems(newIdsList []int) (storiesItemsList []HNItem)
 	return
 }
 
-func (hn HNClient) getStoriesIds(storyType string) (newIdsList []int) {
+func (hn HNClient) getStoriesIds(storyType string) (newIdsList []int, err error) {
 	// top [500], new [500], best [200]
 	var url string = fmt.Sprintf(hn.StoriesUrlTmplt, storyType)
-	var body []byte = utils.RetrieveBytes(url, nil)
-
-	if err := json.Unmarshal(body, &newIdsList); err != nil {
+	var body []byte
+	body, err = utils.HttpRequest("GET", nil, url, nil)
+	if err != nil {
 		log.Fatalln(err)
+	}
+
+	if err = json.Unmarshal(body, &newIdsList); err != nil {
+		return
+	}
+	return
+}
+
+func (hn HNClient) getItemById(formatStr string, id int) (item HNItem) {
+	var url string = fmt.Sprintf(formatStr, id)
+	var body []byte
+	var err error
+	if body, err = utils.HttpRequest("GET", nil, url, nil); err != nil {
+		log.Panic(err)
+	}
+	if err = json.Unmarshal(body, &item); err != nil {
+		log.Panic(err)
 	}
 	return
 }

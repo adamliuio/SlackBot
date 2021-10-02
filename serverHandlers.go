@@ -88,7 +88,7 @@ func (mw Middlewares) commandToDo(cmd *SlashCommand) error {
 			Type: "section",
 			Text: &ElementText{
 				Type: "mrkdwn",
-				Text: str,
+				Text: "*" + str + "*",
 			},
 			Accessory: &Accessory{
 				Type: "button",
