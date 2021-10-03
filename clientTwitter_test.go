@@ -15,11 +15,11 @@ import (
 // const tweetEndpoint string = "https://api.twitter.com/2/tweets?ids=%s&tweet.fields=author_id"
 
 const tweetEndpoint string = "https://api.twitter.com/2/tweets?ids=%s&tweet.fields=attachments,conversation_id,author_id,created_at,entities,geo,id,in_reply_to_user_id,lang,possibly_sensitive,referenced_tweets,source,text,withheld"
-const convoEndpoint string = "https://api.twitter.com/2/tweets/search/recent?query=conversation_id:%s&tweet.fields=in_reply_to_user_id,author_id,created_at,conversation_id"
+const convoEndpoint string = "https://api.twitter.com/2/tweets/search/recent?query=conversation_id:1436028666887086104&tweet.fields=in_reply_to_user_id,author_id,created_at,conversation_id"
 
 func TestLookUpTweet(t *testing.T) {
-	// curl --location -H "Authorization: Bearer AAAAAAAAAAAAAAAAAAAAACo3UAEAAAAApRD0U8wmPjq94WTSNXvS7FC7EfA%3DilVpIVZpStoSpHvir6o8WX5Tgw69dHapVjcf8F8UUzLk9BlqVm" --request GET 'https://api.twitter.com/2/tweets/1275828087666679809?tweet.fields=attachments,author_id,created_at,entities,geo,id,in_reply_to_user_id,lang,possibly_sensitive,referenced_tweets,source,text,withheld'
-	var respJson []byte = lookUpTweet([]string{"1279940000004973111"})
+	// curl --location -H "Authorization: Bearer AAAAAAAAAAAAAAAAAAAAACo3UAEAAAAAEru0f0L8f8J8ZkLnl5b2Gn3tyTQ%3DPEVJzfxflTHwjVimZP9cdKy5VbdaOBXmjXFcCwVLM8pZekmMgO" --request GET 'https://api.twitter.com/2/tweets/1275828087666679809?tweet.fields=attachments,author_id,created_at,entities,geo,id,in_reply_to_user_id,lang,possibly_sensitive,referenced_tweets,source,text,withheld'
+	var respJson []byte = lookUpTweet([]string{"1436028668082462748"})
 	var respJsonStr string = utils.PrettyJsonString(respJson)
 	// respJson = string(body)
 	t.Log(respJsonStr)
@@ -43,6 +43,7 @@ func lookUpTweet(ids []string) (respJson []byte) {
 }
 
 func TestGetThreadTweets(t *testing.T) {
+	// curl --request GET --url 'https://api.twitter.com/2/tweets/search/recent?query=conversation_id:1443983903765766150+from:1282121312&tweet.fields=in_reply_to_user_id,author_id,created_at,conversation_id,public_metrics,text' --header 'Authorization: Bearer
 	var respJson []byte
 	var err error
 	if respJson, err = getThreadTweets("1436028666887086104"); err != nil {

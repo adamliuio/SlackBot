@@ -10,4 +10,4 @@ files
 gmail-credentials.json
 data-samples
 ids
-sync-folders.sh
+sync-*.sh

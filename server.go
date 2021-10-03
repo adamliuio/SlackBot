@@ -19,20 +19,22 @@ func init() {
 }
 
 func server() {
-	app := fiber.New()
+	var app *fiber.App = fiber.New()
 	app.Use(logger.New())
 
 	app.Get("/", mw.Home)
 	app.Post("/", func(c *fiber.Ctx) error { return c.SendString("Hello, World 👋!") })
 	app.Post("/ping", mw.Ping)
 
-	slack := app.Group("/slack") // /slack
+	var slack fiber.Router = app.Group("/slack") // /slack
 	{
 		slack.Post("/commands", mw.Commands)   // /slack/commands
 		slack.Post("/shortcuts", mw.Shortcuts) // /slack/shortcuts
-		slack.Post("/events", mw.Events)       // /slack/events
 	}
-	slack.Post("/reddit-redirect", mw.Events) // /slack/events
+	var discord fiber.Router = app.Group("/discord") // /discord
+	{
+		discord.Post("/hi", dc.Interact) // /discord/hi
+	}
 
 	if Hostname != "MacBook-Pro.local" {
 		app.Use("/file", filesystem.New(filesystem.Config{

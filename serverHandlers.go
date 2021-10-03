@@ -14,9 +14,6 @@ import (
 type Middlewares struct{}
 
 func (mw Middlewares) Home(c *fiber.Ctx) error {
-	log.Println(string(c.Request().URI().QueryString()))
-	var incomingData []byte = c.Body()
-	log.Printf("c.Body(): %+v\n\n", string(incomingData))
 	return c.SendString("Hello, World 👋!")
 }
 
@@ -40,16 +37,6 @@ func (mw Middlewares) Shortcuts(c *fiber.Ctx) (err error) {
 }
 
 func (mw Middlewares) Ping(c *fiber.Ctx) error { return c.SendString("pong 👋!") }
-
-func (mw Middlewares) Events(c *fiber.Ctx) error {
-	var incomingData []byte = c.Body()
-	log.Printf("c.Body(): %+v\n", string(incomingData))
-	var cha = make(map[string]string)
-	json.Unmarshal(incomingData, &cha)
-	log.Printf("cha: %+v\n", cha)
-
-	return c.SendString(cha["challenge"])
-}
 
 func (mw Middlewares) Commands(c *fiber.Ctx) error {
 	cmd := new(SlashCommand)

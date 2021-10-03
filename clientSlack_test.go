@@ -69,7 +69,7 @@ func TestDeleteMsg(t *testing.T) {
 }
 
 func TestAuth(t *testing.T) {
-	// curl -i -H "Authorization:Bearer xoxb-686395132496-2524807305584-ejmcqbgIcFbKL0hd3NN1lxM8" -X POST https://slack.com/api/auth.test
+	// curl -i -H "Authorization:Bearer xoxb-" -X POST https://slack.com/api/auth.test
 	var url string = "https://slack.com/api/auth.test"
 	var headers = [][]string{{"Authorization", fmt.Sprintf("Bearer %s", os.Getenv("SlackBotUserOAuthToken"))}}
 	var err error = sc.SendBytes([]byte{}, url, headers)

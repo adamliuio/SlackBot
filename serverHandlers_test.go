@@ -9,10 +9,6 @@ import (
 	"time"
 )
 
-func TestServer(t *testing.T) {
-	server()
-}
-
 func TestShortcuts(t *testing.T) {
 	os.Setenv("DoNotAutoRetrieve", "yes")
 	go server()
