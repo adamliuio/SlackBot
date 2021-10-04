@@ -177,7 +177,8 @@ type TweetVideoVariant struct {
 }
 
 type ListTweetUser struct {
-	Id_Str      string `json:"id_str,omitempty"`
-	Name        string `json:"name,omitempty"`
-	Screen_Name string `json:"screen_name,omitempty"`
+	Id_Str                  string `json:"id_str,omitempty"`
+	Name                    string `json:"name,omitempty"`
+	Screen_Name             string `json:"screen_name,omitempty"`
+	Profile_image_url_https string `json:"profile_image_url_https,omitempty"`
 }

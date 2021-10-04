@@ -27,10 +27,10 @@ func TestRegex(t *testing.T) {
 	fmt.Println(res) // Abraham Lincoln
 }
 
-func TestYolo(t *testing.T) {
+func TestYolo(t *testing.T) { // pulls a tweet and send to slack
 	var tweets []Tweet
 	var err error
-	if tweets, err = tc.LookUpTweets([]string{"1442358967913488386"}); err != nil {
+	if tweets, err = tc.LookUpTweets([]string{"1444268274267693057"}); err != nil {
 		t.Fatal(err)
 	}
 	_ = tweets

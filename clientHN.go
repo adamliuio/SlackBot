@@ -186,7 +186,8 @@ func (hn HNClient) hnStoriesToBlocks(storyTypeInfo string, stories []HNItem, use
 	for _, story = range stories {
 		var text string = fmt.Sprintf(
 			"*<%s|%s>*\n[<%s|hn>] Score: %d, Comments: %d\n@%s [%s]",
-			story.Url, story.Title, fmt.Sprintf(hn.PageUrlTmplt, story.Id), story.Score, len(story.Kids), hn.parseHostname(story.Url), utils.ConvertUnixTime(story.Time),
+			story.Url, story.Title, fmt.Sprintf(hn.PageUrlTmplt, story.Id), story.Score,
+			len(story.Kids), hn.parseHostname(story.Url), utils.ConvertUnixTime(story.Time),
 		)
 		if useDivider {
 			messageBlocks = append(messageBlocks, MessageBlock{Type: "divider"})

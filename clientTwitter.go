@@ -252,28 +252,41 @@ func (tc TwitterClient) formatTweet(tweet ListTweet) (mbarr []MessageBlock, err 
 
 	var reg *regexp.Regexp = regexp.MustCompile(`https:\/\/t.co\/([A-Za-z0-9])\w+`) // remove links like "https://t.co/se6Ys5aJ4x"
 	tweet.Full_Text = reg.ReplaceAllString(tweet.Full_Text, "")
+	mbarr = append(mbarr, tc.addthumbnail(tweet.User.Profile_image_url_https, tweet.User.Screen_Name))
 	if retweet != nil { // if it's a retweet
 		retweet.Full_Text = reg.ReplaceAllString(retweet.Full_Text, "")
-		txt = " RT:"
+		txt = " RT"
 		if tweet.Full_Text[:4] != "RT @" {
-			txt = ": " + tweet.Full_Text + txt
+			txt = tweet.Full_Text + txt
 		}
-		txt = fmt.Sprintf(`<https://twitter.com/%s|@%s>%s`, tweet.User.Screen_Name, tweet.User.Screen_Name, txt)
 		mbarr = append(mbarr, sc.CreateTextBlock(txt, "mrkdwn", ""))
 		mbarr = append(mbarr, tc.loopMediaList(tweet.Extended_Entities.Media)...)
-		txt = fmt.Sprintf(`<https://twitter.com/%s|@%s>: %s`, retweet.User.Screen_Name, retweet.User.Screen_Name, retweet.Full_Text)
-		mbarr = append(mbarr, sc.CreateTextBlock(txt, "mrkdwn", ""))
+		mbarr = append(mbarr, tc.addthumbnail(retweet.User.Profile_image_url_https, retweet.User.Screen_Name))
+		mbarr = append(mbarr, sc.CreateTextBlock(retweet.Full_Text, "mrkdwn", ""))
 		txt = fmt.Sprintf(`[<https://twitter.com/%s/status/%s|tweet>] retweets: *%d*, likes: *%d*`, tweet.User.Screen_Name, tweet.Id_Str, retweet.Retweet_Count, retweet.Favorite_Count)
 		mbarr = append(mbarr, sc.CreateTextBlock(txt, "mrkdwn", ""))
 		mbarr = append(mbarr, tc.loopMediaList(retweet.Extended_Entities.Media)...)
 	} else {
-		txt = fmt.Sprintf(`<https://twitter.com/%s|@%s>: %s`, tweet.User.Screen_Name, tweet.User.Screen_Name, tweet.Full_Text)
-		mbarr = append(mbarr, sc.CreateTextBlock(txt, "mrkdwn", ""))
+		mbarr = append(mbarr, sc.CreateTextBlock(tweet.Full_Text, "mrkdwn", ""))
 		txt = fmt.Sprintf(`[<https://twitter.com/%s/status/%s|tweet>] retweets: *%d*, likes: *%d*`, tweet.User.Screen_Name, tweet.Id_Str, tweet.Retweet_Count, tweet.Favorite_Count)
 		mbarr = append(mbarr, sc.CreateTextBlock(txt, "mrkdwn", ""))
 		mbarr = append(mbarr, tc.loopMediaList(tweet.Extended_Entities.Media)...)
 	}
 	return
+}
+
+func (tc TwitterClient) addthumbnail(thumbnailUrl, username string) MessageBlock {
+	return MessageBlock{
+		Type: "context",
+		Elements: []*Element{{
+			Type:      "image",
+			Image_Url: thumbnailUrl,
+			AltText:   "profile",
+		}, {
+			Type: "mrkdwn",
+			Text: fmt.Sprintf(`<https://twitter.com/%s|@%s>`, username, username),
+		}},
+	}
 }
 
 func (tc TwitterClient) loopMediaList(mediaList []TweetMedia) (mbarr []MessageBlock) {

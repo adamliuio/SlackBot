@@ -77,11 +77,13 @@ type Accessory struct {
 	ActionId string       `json:"action_id,omitempty"`
 }
 type Element struct {
-	Type     string      `json:"type,omitempty"`
-	Text     interface{} `json:"text,omitempty"`
-	Value    string      `json:"value,omitempty"`
-	ActionId string      `json:"action_id,omitempty"`
-	Emoji    bool        `json:"emoji,omitempty"`
+	Type      string      `json:"type,omitempty"`
+	Text      interface{} `json:"text,omitempty"`
+	Value     string      `json:"value,omitempty"`
+	ActionId  string      `json:"action_id,omitempty"`
+	Emoji     bool        `json:"emoji,omitempty"`
+	Image_Url string      `json:"image_url,omitempty"`
+	AltText   string      `json:"alt_text,omitempty"`
 }
 
 type Placeholder struct {
