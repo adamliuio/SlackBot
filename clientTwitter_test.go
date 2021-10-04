@@ -12,9 +12,9 @@ import (
 	"testing"
 )
 
-// const tweetEndpoint string = "https://api.twitter.com/2/tweets?ids=%s&tweet.fields=author_id"
-
-const convoEndpoint string = "https://api.twitter.com/2/tweets/search/recent?query=conversation_id:%s&tweet.fields=in_reply_to_user_id,author_id,created_at,conversation_id"
+func TestThread(t *testing.T) {
+	tc.GetThread("1444268274267693057", "15735804")
+}
 
 func TestRegex(t *testing.T) {
 	s := `https://t.co/se6Ys5aJ4x
@@ -30,11 +30,11 @@ func TestRegex(t *testing.T) {
 func TestYolo(t *testing.T) { // pulls a tweet and send to slack
 	var tweets []Tweet
 	var err error
-	if tweets, err = tc.LookUpTweets([]string{"1444268274267693057"}); err != nil {
+	if tweets, err = tc.LookUpTweets([]string{"1444268277337833472"}); err != nil {
 		t.Fatal(err)
 	}
 	_ = tweets
-	var tweet ListTweet
+	var tweet Tweet
 	_ = json.Unmarshal(utils.ReadFile("data-samples/tweet.json"), &tweet)
 	// t.Fatalf("%+v\n", tweet)
 	if err := tc.TestFormatTweet(tweet); err != nil {
@@ -43,7 +43,7 @@ func TestYolo(t *testing.T) { // pulls a tweet and send to slack
 }
 
 func TestFormatTweet(t *testing.T) {
-	var tweet ListTweet
+	var tweet Tweet
 	_ = json.Unmarshal(utils.ReadFile("data-samples/tweet.json"), &tweet)
 	// t.Fatalf("%+v\n", tweet)
 	if err := tc.TestFormatTweet(tweet); err != nil {
@@ -60,32 +60,15 @@ func TestLookUpTweets(t *testing.T) {
 	t.Logf("tweet: %+v\n", tweets)
 }
 
-func TestGetThreadTweets(t *testing.T) {
-	// curl --request GET --url 'https://api.twitter.com/2/tweets/search/recent?query=conversation_id:1443983903765766150+from:1282121312&tweet.fields=in_reply_to_user_id,author_id,created_at,conversation_id,public_metrics,text' --header 'Authorization: Bearer
-	var respJson []byte
-	var err error
-	if respJson, err = getThreadTweets("1436028666887086104"); err != nil {
-		t.Fatal(err)
-	}
-	t.Log(utils.PrettyJsonString(respJson))
-}
-func getThreadTweets(convoID string) (respJson []byte, err error) {
-	var url string = fmt.Sprintf(convoEndpoint, convoID)
-	if respJson, err = tc.SendHttpRequest(url, "v2"); err != nil {
-		return
-	}
-	return
-}
-
 func TestLookUpTwitterUsers(t *testing.T) {
 	// curl --location --request GET 'https://api.twitter.com/2/users/2244994946'
 	var respJson []byte
 	var err error
-	if respJson, err = tc.LookUpTwitterUsers([]string{"twitter", "twitterdev", "twitterapi", "googledevs"}, "username"); err != nil {
+	if respJson, err = tc.LookUpTwitterUsers([]string{"bbourque"}, "username"); err != nil {
 		log.Fatalln(err)
 	}
-	var respJsonStr string = utils.PrettyJsonString(respJson)
-	// respJson = string(body)
+	// var respJsonStr string = utils.PrettyJsonString(respJson)
+	var respJsonStr string = string(respJson)
 	t.Log(respJsonStr)
 
 	var user TwitterUser
@@ -130,7 +113,7 @@ func Test32Byte(t *testing.T) {
 }
 
 func TestGetListContent(t *testing.T) {
-	var tweets []ListTweet
+	var tweets []Tweet
 	var err error
 	if tweets, err = tc.GetListContent("Makers"); err != nil {
 		return
@@ -139,7 +122,7 @@ func TestGetListContent(t *testing.T) {
 }
 
 func TestListContentMarshal(t *testing.T) {
-	var tweets []ListTweet
+	var tweets []Tweet
 	_ = json.Unmarshal(utils.ReadFile("data-samples/list-statuses.json"), &tweets)
 
 	t.Log(len(tweets))

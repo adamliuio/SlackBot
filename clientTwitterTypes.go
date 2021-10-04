@@ -8,14 +8,6 @@ type TweetList struct {
 	Type   string          `json:"type,omitempty"`   // for error
 }
 
-type Tweet struct {
-	Created_At string `json:"created_at,omitempty"`
-	Id         string `json:"id,omitempty"`
-	Id_Str     string `json:"id_str,omitempty"`
-	Full_Text  string `json:"full_text,omitempty"`
-	Truncated  bool   `json:"truncated,omitempty"`
-}
-
 type TweetListData struct {
 	Entities           TweetEntities      `json:"entities,omitempty"`
 	Author_Id          string             `json:"author_id,omitempty"`
@@ -141,16 +133,16 @@ type UserDataIncludes struct {
 	Tweets []TweetListData `json:"includes,omitempty"`
 }
 
-type ListTweet struct {
+type Tweet struct {
 	Created_At        string                `json:"created_at,omitempty"`
 	Id                int                   `json:"id,omitempty"`
 	Id_Str            string                `json:"id_str,omitempty"`
 	Full_Text         string                `json:"full_text,omitempty"`
 	Retweet_Count     int                   `json:"retweet_count,omitempty"`
 	Favorite_Count    int                   `json:"favorite_count,omitempty"`
-	User              ListTweetUser         `json:"user,omitempty"`
-	Retweeted_Status  *ListTweet            `json:"retweeted_status,omitempty"`
-	Quoted_Status     *ListTweet            `json:"quoted_status,omitempty"`
+	User              TweetUser             `json:"user,omitempty"`
+	Retweeted_Status  *Tweet                `json:"retweeted_status,omitempty"`
+	Quoted_Status     *Tweet                `json:"quoted_status,omitempty"`
 	Entities          TweetEntities         `json:"entities,omitempty"`
 	Extended_Entities TweetExtendedEntities `json:"extended_entities,omitempty"`
 }
@@ -176,9 +168,38 @@ type TweetVideoVariant struct {
 	Url          string `json:"url,omitempty"`
 }
 
-type ListTweetUser struct {
+type TweetUser struct {
 	Id_Str                  string `json:"id_str,omitempty"`
 	Name                    string `json:"name,omitempty"`
 	Screen_Name             string `json:"screen_name,omitempty"`
 	Profile_image_url_https string `json:"profile_image_url_https,omitempty"`
+}
+
+type Thread struct {
+	Data     []ThreadTweetInfo `json:"data,omitempty"`
+	Includes ThreadIncludes    `json:"includes,omitempty"`
+}
+
+type ThreadIncludes struct {
+	Users  []ThreadUsers     `json:"users,omitempty"`
+	Tweets []ThreadTweetInfo `json:"tweets,omitempty"`
+}
+
+type ThreadUsers struct {
+	Id       string `json:"id,omitempty"`
+	Name     string `json:"name,omitempty"`
+	Username string `json:"username,omitempty"`
+}
+type ThreadTweetInfo struct {
+	Conversation_id     string                  `json:"conversation_id,omitempty"`
+	Created_at          string                  `json:"created_at,omitempty"`
+	Author_id           string                  `json:"author_id,omitempty"`
+	In_reply_to_user_id string                  `json:"in_reply_to_user_id,omitempty"`
+	Text                string                  `json:"text,omitempty"`
+	Id                  string                  `json:"id,omitempty"`
+	Referenced_tweets   []ThreadReferencedTweet `json:"referenced_tweets,omitempty"`
+}
+type ThreadReferencedTweet struct {
+	Type string `json:"type,omitempty"`
+	Id   string `json:"id,omitempty"`
 }

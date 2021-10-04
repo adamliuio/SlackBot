@@ -17,10 +17,10 @@ import (
 
 type TwitterClient struct{}
 
+const convoEndpoint string = "https://api.twitter.com/2/tweets/search/recent?query=conversation_id:%s from:%s to:%s&max_results=100&expansions=author_id,in_reply_to_user_id,referenced_tweets.id&tweet.fields=in_reply_to_user_id,author_id,created_at,conversation_id"
+const usersLookupEndpoint string = "https://api.twitter.com/2/users%s&user.fields=created_at,description,entities,id,location,name,pinned_tweet_id,profile_image_url,protected,url,username,verified,withheld&expansions=pinned_tweet_id&tweet.fields=attachments,author_id,conversation_id,created_at,entities,geo,id,in_reply_to_user_id,lang,possibly_sensitive,referenced_tweets,source,text,withheld"
 const tweetLoopUpEndpoint string = "https://api.twitter.com/1.1/statuses/show.json?id=%s&tweet_mode=extended"
 const listEndpoint string = "https://api.twitter.com/1.1/lists/statuses.json?list_id=%s&count=1000&tweet_mode=extended"
-const usersByUsernameEndpoint string = "https://api.twitter.com/2/users/by?usernames=%s&user.fields=created_at,description,entities,id,location,name,pinned_tweet_id,profile_image_url,protected,url,username,verified,withheld&expansions=pinned_tweet_id&tweet.fields=attachments,author_id,conversation_id,created_at,entities,geo,id,in_reply_to_user_id,lang,possibly_sensitive,referenced_tweets,source,text,withheld"
-const usersByIdEndpoint string = "https://api.twitter.com/2/users?ids=%s&user.fields=created_at,description,entities,id,location,name,pinned_tweet_id,profile_image_url,protected,url,username,verified,withheld&expansions=pinned_tweet_id&tweet.fields=attachments,author_id,conversation_id,created_at,entities,geo,id,in_reply_to_user_id,lang,possibly_sensitive,referenced_tweets,source,text,withheld"
 const twitterFilename string = "ids/ids-twitter.json"
 
 // const tweetsEndpoint string = "https://api.twitter.com/2/tweets?ids=%s&tweet.fields=public_metrics,attachments,conversation_id,author_id,created_at,entities,geo,id,in_reply_to_user_id,lang,possibly_sensitive,referenced_tweets,source,text"
@@ -78,11 +78,11 @@ func (tc TwitterClient) LookUpTwitterUsers(ids []string, idType string) (respJso
 		idsString = idsString + "," + id
 	}
 	if idType == "id" {
-		if respJson, err = tc.SendHttpRequest(fmt.Sprintf(usersByIdEndpoint, idsString), "v2"); err != nil {
+		if respJson, err = tc.SendHttpRequest(fmt.Sprintf(usersLookupEndpoint, fmt.Sprintf("?ids=%s", idsString)), "v2"); err != nil {
 			log.Panic(err)
 		}
 	} else if idType == "username" {
-		if respJson, err = tc.SendHttpRequest(fmt.Sprintf(usersByUsernameEndpoint, idsString), "v2"); err != nil {
+		if respJson, err = tc.SendHttpRequest(fmt.Sprintf(usersLookupEndpoint, fmt.Sprintf("/by?usernames=%s", idsString)), "v2"); err != nil {
 			log.Panic(err)
 		}
 	} else {
@@ -180,7 +180,7 @@ func (tc TwitterClient) RetrieveByCommand(cmdTxt string) (mbs MessageBlocks, err
 }
 
 func (tc TwitterClient) retrieveTweets(listName string, leastLikes int, saveIDs bool) (mbList [][]MessageBlock, err error) {
-	var listTweets, qualifiedListTweets []ListTweet
+	var listTweets, qualifiedListTweets []Tweet
 	if listTweets, err = tc.GetListContent(listName); err != nil {
 		return
 	}
@@ -189,10 +189,10 @@ func (tc TwitterClient) retrieveTweets(listName string, leastLikes int, saveIDs 
 	json.Unmarshal(utils.ReadFile(twitterFilename), &savedTweetIds)
 
 	// check if tweets are qualified
-	var listTweet ListTweet
+	var listTweet Tweet
 	for _, listTweet = range listTweets {
-		var retweet *ListTweet = listTweet.Retweeted_Status
-		var quoted *ListTweet = listTweet.Quoted_Status
+		var retweet *Tweet = listTweet.Retweeted_Status
+		var quoted *Tweet = listTweet.Quoted_Status
 		var exist bool = false
 		var leastRetweetLikes int
 		leastRetweetLikes, _ = strconv.Atoi(os.Getenv("AutoTwitterLeastRetweetLikes"))
@@ -212,7 +212,7 @@ func (tc TwitterClient) retrieveTweets(listName string, leastLikes int, saveIDs 
 
 	var mbarr []MessageBlock
 	for _, listTweet = range qualifiedListTweets {
-		if mbarr, err = tc.formatTweet(listTweet); err != nil {
+		if mbarr, err = tc.FormatTweet(listTweet); err != nil {
 			return
 		}
 		mbList = append(mbList, mbarr)
@@ -226,10 +226,10 @@ func (tc TwitterClient) retrieveTweets(listName string, leastLikes int, saveIDs 
 	return
 }
 
-func (tc TwitterClient) TestFormatTweet(tweet ListTweet) (err error) {
+func (tc TwitterClient) TestFormatTweet(tweet Tweet) (err error) {
 	var mbarr []MessageBlock
 	// var mbList [][]MessageBlock
-	if mbarr, err = tc.formatTweet(tweet); err != nil {
+	if mbarr, err = tc.FormatTweet(tweet); err != nil {
 		return
 	}
 	var mbs MessageBlocks
@@ -240,10 +240,10 @@ func (tc TwitterClient) TestFormatTweet(tweet ListTweet) (err error) {
 	return
 }
 
-func (tc TwitterClient) formatTweet(tweet ListTweet) (mbarr []MessageBlock, err error) {
+func (tc TwitterClient) FormatTweet(tweet Tweet) (mbarr []MessageBlock, err error) {
 	mbarr = append(mbarr, MessageBlock{Type: "divider"})
 	var txt string
-	var retweet *ListTweet
+	var retweet *Tweet
 	if tweet.Retweeted_Status == nil {
 		retweet = tweet.Quoted_Status
 	} else {
@@ -252,7 +252,7 @@ func (tc TwitterClient) formatTweet(tweet ListTweet) (mbarr []MessageBlock, err 
 
 	var reg *regexp.Regexp = regexp.MustCompile(`https:\/\/t.co\/([A-Za-z0-9])\w+`) // remove links like "https://t.co/se6Ys5aJ4x"
 	tweet.Full_Text = reg.ReplaceAllString(tweet.Full_Text, "")
-	mbarr = append(mbarr, tc.addthumbnail(tweet.User.Profile_image_url_https, tweet.User.Screen_Name))
+	mbarr = append(mbarr, tc.Addthumbnail(tweet.User.Profile_image_url_https, tweet.User.Screen_Name))
 	if retweet != nil { // if it's a retweet
 		retweet.Full_Text = reg.ReplaceAllString(retweet.Full_Text, "")
 		txt = " RT"
@@ -261,7 +261,7 @@ func (tc TwitterClient) formatTweet(tweet ListTweet) (mbarr []MessageBlock, err 
 		}
 		mbarr = append(mbarr, sc.CreateTextBlock(txt, "mrkdwn", ""))
 		mbarr = append(mbarr, tc.loopMediaList(tweet.Extended_Entities.Media)...)
-		mbarr = append(mbarr, tc.addthumbnail(retweet.User.Profile_image_url_https, retweet.User.Screen_Name))
+		mbarr = append(mbarr, tc.Addthumbnail(retweet.User.Profile_image_url_https, retweet.User.Screen_Name))
 		mbarr = append(mbarr, sc.CreateTextBlock(retweet.Full_Text, "mrkdwn", ""))
 		txt = fmt.Sprintf(`[<https://twitter.com/%s/status/%s|tweet>] retweets: *%d*, likes: *%d*`, tweet.User.Screen_Name, tweet.Id_Str, retweet.Retweet_Count, retweet.Favorite_Count)
 		mbarr = append(mbarr, sc.CreateTextBlock(txt, "mrkdwn", ""))
@@ -275,7 +275,7 @@ func (tc TwitterClient) formatTweet(tweet ListTweet) (mbarr []MessageBlock, err 
 	return
 }
 
-func (tc TwitterClient) addthumbnail(thumbnailUrl, username string) MessageBlock {
+func (tc TwitterClient) Addthumbnail(thumbnailUrl, username string) MessageBlock {
 	return MessageBlock{
 		Type: "context",
 		Elements: []*Element{{
@@ -306,7 +306,7 @@ func (tc TwitterClient) loopMediaList(mediaList []TweetMedia) (mbarr []MessageBl
 	return
 }
 
-func (tc TwitterClient) GetListContent(listName string) (tweets []ListTweet, err error) {
+func (tc TwitterClient) GetListContent(listName string) (tweets []Tweet, err error) {
 	var url string = fmt.Sprintf(listEndpoint, TweetLists[listName])
 	var respJson []byte
 	if respJson, err = tc.SendHttpRequest(url, "v1"); err != nil {
@@ -315,6 +315,96 @@ func (tc TwitterClient) GetListContent(listName string) (tweets []ListTweet, err
 	_ = json.Unmarshal(respJson, &tweets)
 	if flag.Lookup("test.v") != nil { // if in test mode
 		utils.WriteFile(respJson, "data-samples/list-statuses.json")
+	}
+	return
+}
+
+func (tc TwitterClient) GetThread(tweetID, userID string) (err error) {
+	var tweets []Tweet
+	if tweets, err = tc.getThreadTweets(tweetID, userID); err != nil {
+		return
+	}
+	if tc.sendThread(tweets); err != nil {
+		return
+	}
+	return
+}
+
+func (tc TwitterClient) sendThread(threadList []Tweet) (err error) {
+	var mbs MessageBlocks
+	for _, tweet := range threadList {
+		var mbarr []MessageBlock
+		if mbarr, err = tc.FormatTweet(tweet); err != nil {
+			return
+		}
+		mbs.Blocks = append(mbs.Blocks, mbarr...)
+	}
+	if err = sc.SendBlocks(mbs, os.Getenv("SlackWebHookUrlTest")); err != nil {
+		return
+	}
+	return
+}
+
+func (tc TwitterClient) getThreadTweets(convoID, userID string) (tweets []Tweet, err error) {
+	var url string = fmt.Sprintf(convoEndpoint, convoID, userID, userID)
+	url = strings.ReplaceAll(url, " ", "%20")
+
+	var respJson []byte
+	var thread Thread
+	if respJson, err = tc.SendHttpRequest(url, "v2"); err != nil {
+		return
+	}
+	if err = json.Unmarshal(respJson, &thread); err != nil {
+		return
+	}
+	if tweets, err = tc.sortThreadTweets(thread); err != nil {
+		return
+	}
+	return
+}
+
+func (tc TwitterClient) sortThreadTweets(thread Thread) (tweets []Tweet, err error) {
+	var sortedThreadTweets []ThreadTweetInfo
+	var threadTweet, tweet ThreadTweetInfo
+	var threadTweets []ThreadTweetInfo
+	for _, tweet = range append(thread.Data, thread.Includes.Tweets...) {
+		var exist bool = false
+		for _, threadTweet = range threadTweets {
+			if tweet.Id == threadTweet.Id {
+				exist = true
+				break
+			}
+		}
+		if !exist {
+			threadTweets = append(threadTweets, tweet)
+			if tweet.Referenced_tweets == nil {
+				sortedThreadTweets = append(sortedThreadTweets, tweet)
+			}
+		}
+	}
+	for i := 0; i < len(threadTweets); i++ {
+		var id string = sortedThreadTweets[i].Id
+		for _, threadTweet = range threadTweets {
+			var referencedTweet ThreadReferencedTweet
+			for _, t := range threadTweet.Referenced_tweets {
+				if t.Type == "replied_to" {
+					referencedTweet = t
+					break
+				}
+			}
+			if referencedTweet.Id == id {
+				sortedThreadTweets = append(sortedThreadTweets, threadTweet)
+				break
+			}
+		}
+	}
+	var ids []string
+	for _, tt := range sortedThreadTweets {
+		ids = append(ids, tt.Id)
+	}
+
+	if tweets, err = tc.LookUpTweets(ids); err != nil {
+		return
 	}
 	return
 }
