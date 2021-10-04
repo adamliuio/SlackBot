@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
 	"testing"
 )
 
@@ -15,10 +16,21 @@ import (
 
 const convoEndpoint string = "https://api.twitter.com/2/tweets/search/recent?query=conversation_id:%s&tweet.fields=in_reply_to_user_id,author_id,created_at,conversation_id"
 
+func TestRegex(t *testing.T) {
+	s := `https://t.co/se6Ys5aJ4x
+	https://t.co/YNFdKWuFTe
+	https://t.co/478JeNv666
+	
+	https://t.co/se6Ys5aJ4x https://t.co/YNFdKWuFTe RT`
+	reg := regexp.MustCompile(`https:\/\/t.co\/([A-Za-z0-9])\w+`)
+	res := reg.ReplaceAllString(s, "")
+	fmt.Println(res) // Abraham Lincoln
+}
+
 func TestYolo(t *testing.T) {
 	var tweets []Tweet
 	var err error
-	if tweets, err = tc.LookUpTweets([]string{"1444268274267693057"}); err != nil {
+	if tweets, err = tc.LookUpTweets([]string{"1442358967913488386"}); err != nil {
 		t.Fatal(err)
 	}
 	_ = tweets

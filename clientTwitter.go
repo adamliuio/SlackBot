@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -248,7 +249,11 @@ func (tc TwitterClient) formatTweet(tweet ListTweet) (mbarr []MessageBlock, err 
 	} else {
 		retweet = tweet.Retweeted_Status
 	}
+
+	var reg *regexp.Regexp = regexp.MustCompile(`https:\/\/t.co\/([A-Za-z0-9])\w+`) // remove links like "https://t.co/se6Ys5aJ4x"
+	tweet.Full_Text = reg.ReplaceAllString(tweet.Full_Text, "")
 	if retweet != nil { // if it's a retweet
+		retweet.Full_Text = reg.ReplaceAllString(retweet.Full_Text, "")
 		txt = " RT:"
 		if tweet.Full_Text[:4] != "RT @" {
 			txt = ": " + tweet.Full_Text + txt
