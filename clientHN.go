@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"net/url"
+	urlUtils "net/url"
 	"os"
 	"sort"
 	"strconv"
@@ -199,7 +199,7 @@ func (hn HNClient) hnStoriesToBlocks(storyTypeInfo string, stories []HNItem, use
 }
 
 func (hn HNClient) parseHostname(hostname string) string {
-	u, err := url.Parse(hostname)
+	u, err := urlUtils.Parse(hostname)
 	if err != nil {
 		return fmt.Sprintln("url has issue:", err.Error())
 	}

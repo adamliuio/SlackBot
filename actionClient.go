@@ -88,7 +88,7 @@ func (bc ActionClient) SendButton() (messageBlocks MessageBlocks) {
 	messageBlocks = MessageBlocks{
 		Blocks: []MessageBlock{{
 			Type: "actions",
-			Elements: []Element{{
+			Elements: []*Element{{
 				Type: "button",
 				Text: ElementText{
 					Type: "plain_text",

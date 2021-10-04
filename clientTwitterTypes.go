@@ -1,23 +1,39 @@
 package main
 
-type Tweet struct {
-	Data   TweetData      `json:"data,omitempty"`
-	Errors []TwitterError `json:"errors,omitempty"`
-	Title  string         `json:"title,omitempty"`  // for error
-	Detail string         `json:"detail,omitempty"` // for error
-	Type   string         `json:"type,omitempty"`   // for error
+type TweetList struct {
+	Data   []TweetListData `json:"data,omitempty"`
+	Errors []TwitterError  `json:"errors,omitempty"`
+	Title  string          `json:"title,omitempty"`  // for error
+	Detail string          `json:"detail,omitempty"` // for error
+	Type   string          `json:"type,omitempty"`   // for error
 }
 
-type TweetData struct {
-	Entities           TweetEntities    `json:"entities,omitempty"`
-	Author_Id          string           `json:"author_id,omitempty"`
-	Text               string           `json:"text,omitempty"`
-	Possibly_Sensitive bool             `json:"possibly_sensitive,omitempty"`
-	Id                 string           `json:"id,omitempty"`
-	Source             string           `json:"source,omitempty"`
-	Lang               string           `json:"lang,omitempty"`
-	Created_At         string           `json:"created_at,omitempty"`
-	TweetAttachments   TweetAttachments `json:"attachments,omitempty"`
+type Tweet struct {
+	Created_At string `json:"created_at,omitempty"`
+	Id         string `json:"id,omitempty"`
+	Id_Str     string `json:"id_str,omitempty"`
+	Full_Text  string `json:"full_text,omitempty"`
+	Truncated  bool   `json:"truncated,omitempty"`
+}
+
+type TweetListData struct {
+	Entities           TweetEntities      `json:"entities,omitempty"`
+	Author_Id          string             `json:"author_id,omitempty"`
+	Text               string             `json:"text,omitempty"`
+	Possibly_Sensitive bool               `json:"possibly_sensitive,omitempty"`
+	Id                 string             `json:"id,omitempty"`
+	Source             string             `json:"source,omitempty"`
+	Lang               string             `json:"lang,omitempty"`
+	Created_At         string             `json:"created_at,omitempty"`
+	TweetAttachments   TweetAttachments   `json:"attachments,omitempty"`
+	Public_Metrics     TweetPublicMetrics `json:"public_metrics,omitempty"`
+}
+
+type TweetPublicMetrics struct {
+	Retweet_Count int `json:"retweet_count,omitempty"`
+	Reply_Count   int `json:"reply_count,omitempty"`
+	Like_Count    int `json:"like_count,omitempty"`
+	Quote_Count   int `json:"quote_count,omitempty"`
 }
 
 type TweetAttachments struct {
@@ -43,19 +59,6 @@ type UserMention struct {
 type TwitterUserUrls struct {
 	Urls []TweetUrl `json:"urls,omitempty"`
 }
-
-// "entities": {  // user
-// 	"url": {
-// 		"urls": [
-// 			{
-// 				"start": 0,
-// 				"end": 23,
-// 				"url": "https://t.co/DAtOo6uuHk",
-// 				"expanded_url": "https://about.twitter.com/",
-// 				"display_url": "about.twitter.com"
-// 			}
-// 		]
-// 	}
 
 type Hashtag struct {
 	Start   int    `json:"start,omitempty"`
@@ -135,18 +138,19 @@ type UserData struct {
 }
 
 type UserDataIncludes struct {
-	Tweets []TweetData `json:"includes,omitempty"`
+	Tweets []TweetListData `json:"includes,omitempty"`
 }
 
 type ListTweet struct {
 	Created_At        string                `json:"created_at,omitempty"`
 	Id                int                   `json:"id,omitempty"`
 	Id_Str            string                `json:"id_str,omitempty"`
-	Text              string                `json:"text,omitempty"`
+	Full_Text         string                `json:"full_text,omitempty"`
 	Retweet_Count     int                   `json:"retweet_count,omitempty"`
 	Favorite_Count    int                   `json:"favorite_count,omitempty"`
 	User              ListTweetUser         `json:"user,omitempty"`
 	Retweeted_Status  *ListTweet            `json:"retweeted_status,omitempty"`
+	Quoted_Status     *ListTweet            `json:"quoted_status,omitempty"`
 	Entities          TweetEntities         `json:"entities,omitempty"`
 	Extended_Entities TweetExtendedEntities `json:"extended_entities,omitempty"`
 }

@@ -48,7 +48,7 @@ type MessageBlock struct {
 	Text        *ElementText     `json:"text,omitempty"`
 	Value       string           `json:"value,omitempty"`
 	ActionId    string           `json:"action_id,omitempty"`
-	Elements    []Element        `json:"elements,omitempty"`
+	Elements    []*Element       `json:"elements,omitempty"`
 	Placeholder *Placeholder     `json:"placeholder,omitempty"`
 	ImageUrl    string           `json:"image_url,omitempty"`
 	AltText     string           `json:"alt_text,omitempty"`
@@ -56,6 +56,11 @@ type MessageBlock struct {
 	Title       *Placeholder     `json:"title,omitempty"`
 	Element     *CheckboxElement `json:"element,omitempty"`
 	Label       *ElementText     `json:"label,omitempty"`
+}
+
+type MessageContextBlock struct {
+	Type     string     `json:"type,omitempty"`
+	Elements []*Element `json:"elements,omitempty"`
 }
 
 type CheckboxElement struct {
@@ -73,9 +78,10 @@ type Accessory struct {
 }
 type Element struct {
 	Type     string      `json:"type,omitempty"`
-	Text     ElementText `json:"text,omitempty"`
+	Text     interface{} `json:"text,omitempty"`
 	Value    string      `json:"value,omitempty"`
 	ActionId string      `json:"action_id,omitempty"`
+	Emoji    bool        `json:"emoji,omitempty"`
 }
 
 type Placeholder struct {

@@ -9,37 +9,43 @@ import (
 	"log"
 	"os"
 	"testing"
-	// "google.golang.org/genproto/googleapis/actions/sdk/v2/conversation"
 )
 
 // const tweetEndpoint string = "https://api.twitter.com/2/tweets?ids=%s&tweet.fields=author_id"
 
-const tweetEndpoint string = "https://api.twitter.com/2/tweets?ids=%s&tweet.fields=attachments,conversation_id,author_id,created_at,entities,geo,id,in_reply_to_user_id,lang,possibly_sensitive,referenced_tweets,source,text,withheld"
-const convoEndpoint string = "https://api.twitter.com/2/tweets/search/recent?query=conversation_id:1436028666887086104&tweet.fields=in_reply_to_user_id,author_id,created_at,conversation_id"
+const convoEndpoint string = "https://api.twitter.com/2/tweets/search/recent?query=conversation_id:%s&tweet.fields=in_reply_to_user_id,author_id,created_at,conversation_id"
 
-func TestLookUpTweet(t *testing.T) {
-	// curl --location -H "Authorization: Bearer AAAAAAAAAAAAAAAAAAAAACo3UAEAAAAAEru0f0L8f8J8ZkLnl5b2Gn3tyTQ%3DPEVJzfxflTHwjVimZP9cdKy5VbdaOBXmjXFcCwVLM8pZekmMgO" --request GET 'https://api.twitter.com/2/tweets/1275828087666679809?tweet.fields=attachments,author_id,created_at,entities,geo,id,in_reply_to_user_id,lang,possibly_sensitive,referenced_tweets,source,text,withheld'
-	var respJson []byte = lookUpTweet([]string{"1436028668082462748"})
-	var respJsonStr string = utils.PrettyJsonString(respJson)
-	// respJson = string(body)
-	t.Log(respJsonStr)
-
-	var tweet Tweet
-	_ = json.Unmarshal(respJson, &tweet)
-	t.Logf("Tweet: %+v\n", tweet)
+func TestYolo(t *testing.T) {
+	var tweets []Tweet
+	var err error
+	if tweets, err = tc.LookUpTweets([]string{"1444268274267693057"}); err != nil {
+		t.Fatal(err)
+	}
+	_ = tweets
+	var tweet ListTweet
+	_ = json.Unmarshal(utils.ReadFile("data-samples/tweet.json"), &tweet)
+	// t.Fatalf("%+v\n", tweet)
+	if err := tc.TestFormatTweet(tweet); err != nil {
+		t.Fatal(err)
+	}
 }
 
-func lookUpTweet(ids []string) (respJson []byte) {
-	var idsString string = ids[0]
-	for _, id := range ids[1:] {
-		idsString = idsString + "," + id
+func TestFormatTweet(t *testing.T) {
+	var tweet ListTweet
+	_ = json.Unmarshal(utils.ReadFile("data-samples/tweet.json"), &tweet)
+	// t.Fatalf("%+v\n", tweet)
+	if err := tc.TestFormatTweet(tweet); err != nil {
+		t.Fatal(err)
 	}
-	var url string = fmt.Sprintf(tweetEndpoint, idsString)
+}
+
+func TestLookUpTweets(t *testing.T) {
+	var tweets []Tweet
 	var err error
-	if respJson, err = tc.SendHttpRequest(url, "v2"); err != nil {
-		log.Fatalln(err)
+	if tweets, err = tc.LookUpTweets([]string{"1444268274267693057"}); err != nil {
+		t.Fatal(err)
 	}
-	return
+	t.Logf("tweet: %+v\n", tweets)
 }
 
 func TestGetThreadTweets(t *testing.T) {
@@ -76,8 +82,8 @@ func TestLookUpTwitterUsers(t *testing.T) {
 }
 
 func TestUnmarshalTweet(t *testing.T) {
-	var tweet Tweet = tc.UnmarshalTweet()
-	t.Logf("Tweet: %+v\n", tweet)
+	var tweetList TweetList = tc.UnmarshalTweet()
+	t.Logf("TweetListData: %+v\n", tweetList)
 }
 
 func TestEndpoints(t *testing.T) {

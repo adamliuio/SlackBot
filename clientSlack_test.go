@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"net/url"
+	urlUtils "net/url"
 	"os"
 	"strings"
 	"testing"
@@ -79,7 +79,7 @@ func TestAuth(t *testing.T) {
 }
 
 func TestUrl(t *testing.T) {
-	u, err := url.Parse("https://siongui.github.io/pali-chanting/zh/archives.html")
+	u, err := urlUtils.Parse("https://siongui.github.io/pali-chanting/zh/archives.html")
 	if err != nil {
 		t.Fatal(err)
 	}

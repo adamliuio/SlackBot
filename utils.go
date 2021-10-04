@@ -45,8 +45,7 @@ func (u Utils) HttpRequest(requestMethod string, reqBody []byte, url string, hea
 
 func (u Utils) ReadFile(filename string) (f []byte) {
 	var err error
-	f, err = ioutil.ReadFile(filename)
-	if err != nil {
+	if f, err = ioutil.ReadFile(filename); err != nil {
 		log.Printf("%s not found", filename)
 	}
 	return
