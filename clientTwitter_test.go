@@ -5,10 +5,11 @@ import (
 	b64 "encoding/base64"
 	"encoding/json"
 	"flag"
-	"fmt"
 	"log"
 	"os"
 	"regexp"
+	"strings"
+	"sync"
 	"testing"
 )
 
@@ -17,20 +18,37 @@ func TestThread(t *testing.T) {
 }
 
 func TestRegex(t *testing.T) {
-	s := `https://t.co/se6Ys5aJ4x
-	https://t.co/YNFdKWuFTe
-	https://t.co/478JeNv666
-	
-	https://t.co/se6Ys5aJ4x https://t.co/YNFdKWuFTe RT`
-	reg := regexp.MustCompile(`https:\/\/t.co\/([A-Za-z0-9])\w+`)
-	res := reg.ReplaceAllString(s, "")
-	fmt.Println(res) // Abraham Lincoln
+	var txt string = string(utils.ReadFile("data-samples/tweetUrls.txt"))
+	var reg *regexp.Regexp = regexp.MustCompile(`https:\/\/t.co\/([A-Za-z0-9])\w+`)
+	var res []string = reg.FindAllString(txt, -1)
+	var redirects = make(map[string]string)
+
+	var wg sync.WaitGroup
+	for _, url := range res {
+		wg.Add(1)
+		go func(url string) {
+			defer wg.Done()
+			finalurl, err := utils.GetRedirectedUrl(url)
+			if err != nil {
+				log.Fatal(err)
+			}
+			if strings.Contains(finalurl, "twitter.com") {
+				redirects[url] = finalurl
+			}
+		}(url)
+	}
+	wg.Wait()
+
+	for url := range redirects {
+		txt = strings.ReplaceAll(txt, url, "")
+	}
+	t.Log(txt)
 }
 
 func TestYolo(t *testing.T) { // pulls a tweet and send to slack
 	var tweets []Tweet
 	var err error
-	if tweets, err = tc.LookUpTweets([]string{"1444268277337833472"}); err != nil {
+	if tweets, err = tc.LookUpTweets([]string{"1445125545767817220"}); err != nil {
 		t.Fatal(err)
 	}
 	_ = tweets
@@ -45,7 +63,7 @@ func TestYolo(t *testing.T) { // pulls a tweet and send to slack
 func TestFormatTweet(t *testing.T) {
 	var tweet Tweet
 	_ = json.Unmarshal(utils.ReadFile("data-samples/tweet.json"), &tweet)
-	// t.Fatalf("%+v\n", tweet)
+	// t.Fatalf("%+v\n", tweet.Extended_Entities.Media[0].Media_Url_Https == tweet.Retweeted_Status.Extended_Entities.Media[0].Media_Url_Https)
 	if err := tc.TestFormatTweet(tweet); err != nil {
 		t.Fatal(err)
 	}

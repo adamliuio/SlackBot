@@ -31,6 +31,10 @@ func TestSendMarkdownText(t *testing.T) {
 	}
 }
 
+func TestUrlRedirect(t *testing.T) {
+	t.Log(utils.GetRedirectedUrl("https://t.co/nxURNgmEvk"))
+}
+
 func TestPostToSlack(t *testing.T) {
 	var err error
 	var req *http.Request

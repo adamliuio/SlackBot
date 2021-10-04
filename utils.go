@@ -100,3 +100,14 @@ func (u Utils) PrettyJsonString(body []byte) (respJson string) {
 	respJson = dst.String()
 	return
 }
+
+func (u Utils) GetRedirectedUrl(url string) (finalUrl string, err error) {
+	// var req *http.Request
+	var resp *http.Response
+	if resp, err = http.Head(url); err != nil {
+		return
+	}
+
+	finalUrl = resp.Request.URL.String()
+	return
+}

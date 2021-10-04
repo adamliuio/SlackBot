@@ -240,6 +240,33 @@ func (tc TwitterClient) TestFormatTweet(tweet Tweet) (err error) {
 	return
 }
 
+func (tc TwitterClient) replaceTwitterUrls(txt string) string {
+	var reg *regexp.Regexp = regexp.MustCompile(`https:\/\/t.co\/([A-Za-z0-9])\w+`) // match links like "https://t.co/se6Ys5aJ4x"
+	var res []string = reg.FindAllString(txt, -1)
+	var redirects = make(map[string]string)
+
+	var wg sync.WaitGroup
+	for _, url := range res {
+		wg.Add(1)
+		go func(url string) {
+			defer wg.Done()
+			finalurl, err := utils.GetRedirectedUrl(url)
+			if err != nil {
+				return
+			}
+			if strings.Contains(finalurl, "twitter.com") {
+				redirects[url] = finalurl
+			}
+		}(url)
+	}
+	wg.Wait()
+
+	for url := range redirects {
+		txt = strings.ReplaceAll(txt, url, "")
+	}
+	return txt
+}
+
 func (tc TwitterClient) FormatTweet(tweet Tweet) (mbarr []MessageBlock, err error) {
 	mbarr = append(mbarr, MessageBlock{Type: "divider"})
 	var txt string
@@ -250,27 +277,36 @@ func (tc TwitterClient) FormatTweet(tweet Tweet) (mbarr []MessageBlock, err erro
 		retweet = tweet.Retweeted_Status
 	}
 
-	var reg *regexp.Regexp = regexp.MustCompile(`https:\/\/t.co\/([A-Za-z0-9])\w+`) // remove links like "https://t.co/se6Ys5aJ4x"
-	tweet.Full_Text = reg.ReplaceAllString(tweet.Full_Text, "")
+	tweet.Full_Text = tc.replaceTwitterUrls(tweet.Full_Text)
 	mbarr = append(mbarr, tc.Addthumbnail(tweet.User.Profile_image_url_https, tweet.User.Screen_Name))
 	if retweet != nil { // if it's a retweet
-		retweet.Full_Text = reg.ReplaceAllString(retweet.Full_Text, "")
+		retweet.Full_Text = tc.replaceTwitterUrls(retweet.Full_Text)
 		txt = " RT"
 		if tweet.Full_Text[:4] != "RT @" {
 			txt = tweet.Full_Text + txt
 		}
 		mbarr = append(mbarr, sc.CreateTextBlock(txt, "mrkdwn", ""))
-		mbarr = append(mbarr, tc.loopMediaList(tweet.Extended_Entities.Media)...)
+		var tweetMedia []TweetMedia = tweet.Extended_Entities.Media
+		var retweetMedia []TweetMedia = retweet.Extended_Entities.Media
+		var tweetRetweetMediaDifferent bool = tweetMedia != nil && retweetMedia != nil && tweetMedia[0].Media_Url_Https != retweetMedia[0].Media_Url_Https
+		var tweetHasMediaRetweetDont bool = tweetMedia != nil && retweetMedia == nil
+		if tweetRetweetMediaDifferent || tweetHasMediaRetweetDont { // avoid duplicated media
+			mbarr = append(mbarr, tc.loopMediaList(tweet.Extended_Entities.Media)...)
+		}
+		if tweet.Favorite_Count > 0 {
+			txt = fmt.Sprintf(`[<https://twitter.com/%s/status/%s|tweet>] retweets: *%d*, likes: *%d*`, tweet.User.Screen_Name, tweet.Id_Str, tweet.Retweet_Count, tweet.Favorite_Count)
+			mbarr = append(mbarr, sc.CreateTextBlock(txt, "mrkdwn", ""))
+		}
 		mbarr = append(mbarr, tc.Addthumbnail(retweet.User.Profile_image_url_https, retweet.User.Screen_Name))
 		mbarr = append(mbarr, sc.CreateTextBlock(retweet.Full_Text, "mrkdwn", ""))
+		mbarr = append(mbarr, tc.loopMediaList(retweet.Extended_Entities.Media)...)
 		txt = fmt.Sprintf(`[<https://twitter.com/%s/status/%s|tweet>] retweets: *%d*, likes: *%d*`, tweet.User.Screen_Name, tweet.Id_Str, retweet.Retweet_Count, retweet.Favorite_Count)
 		mbarr = append(mbarr, sc.CreateTextBlock(txt, "mrkdwn", ""))
-		mbarr = append(mbarr, tc.loopMediaList(retweet.Extended_Entities.Media)...)
 	} else {
 		mbarr = append(mbarr, sc.CreateTextBlock(tweet.Full_Text, "mrkdwn", ""))
+		mbarr = append(mbarr, tc.loopMediaList(tweet.Extended_Entities.Media)...)
 		txt = fmt.Sprintf(`[<https://twitter.com/%s/status/%s|tweet>] retweets: *%d*, likes: *%d*`, tweet.User.Screen_Name, tweet.Id_Str, tweet.Retweet_Count, tweet.Favorite_Count)
 		mbarr = append(mbarr, sc.CreateTextBlock(txt, "mrkdwn", ""))
-		mbarr = append(mbarr, tc.loopMediaList(tweet.Extended_Entities.Media)...)
 	}
 	return
 }
