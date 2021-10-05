@@ -101,13 +101,14 @@ func (u Utils) PrettyJsonString(body []byte) (respJson string) {
 	return
 }
 
-func (u Utils) GetRedirectedUrl(url string) (finalUrl string, err error) {
-	// var req *http.Request
+func (u Utils) CheckUrl(url string) (finalUrl string, contentLength int64, err error) {
+	// check redirected final url & remove file size
 	var resp *http.Response
 	if resp, err = http.Head(url); err != nil {
 		return
 	}
 
 	finalUrl = resp.Request.URL.String()
+	contentLength = resp.ContentLength
 	return
 }

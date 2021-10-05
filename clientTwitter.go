@@ -250,7 +250,7 @@ func (tc TwitterClient) replaceTwitterUrls(txt string) string {
 		wg.Add(1)
 		go func(url string) {
 			defer wg.Done()
-			finalurl, err := utils.GetRedirectedUrl(url)
+			finalurl, _, err := utils.CheckUrl(url)
 			if err != nil {
 				return
 			}
@@ -280,11 +280,11 @@ func (tc TwitterClient) FormatTweet(tweet Tweet) (mbarr []MessageBlock, err erro
 	tweet.Full_Text = tc.replaceTwitterUrls(tweet.Full_Text)
 	mbarr = append(mbarr, tc.Addthumbnail(tweet.User.Profile_image_url_https, tweet.User.Screen_Name))
 	if retweet != nil { // if it's a retweet
-		retweet.Full_Text = tc.replaceTwitterUrls(retweet.Full_Text)
 		txt = " RT"
-		if tweet.Full_Text[:4] != "RT @" {
+		if len(tweet.Full_Text) > 4 && tweet.Full_Text[:4] != "RT @" {
 			txt = tweet.Full_Text + txt
 		}
+		retweet.Full_Text = tc.replaceTwitterUrls(retweet.Full_Text)
 		mbarr = append(mbarr, sc.CreateTextBlock(txt, "mrkdwn", ""))
 		var tweetMedia []TweetMedia = tweet.Extended_Entities.Media
 		var retweetMedia []TweetMedia = retweet.Extended_Entities.Media

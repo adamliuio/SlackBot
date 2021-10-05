@@ -28,7 +28,7 @@ func TestRegex(t *testing.T) {
 		wg.Add(1)
 		go func(url string) {
 			defer wg.Done()
-			finalurl, err := utils.GetRedirectedUrl(url)
+			finalurl, _, err := utils.CheckUrl(url)
 			if err != nil {
 				log.Fatal(err)
 			}

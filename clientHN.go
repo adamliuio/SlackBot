@@ -41,16 +41,19 @@ const hnFilename string = "ids/ids-hn.json"
 
 func (hn HNClient) AutoRetrieveNew() (err error) {
 	fmt.Println(time.Now().Format("2006-01-02 15:04:05"), ":", "Auto retrieving Hacker news posts... ")
+	var str string = "found "
 	for _, s := range []string{"top", "new", "best"} {
-		err = hn._retrieveNew(s)
-		if err != nil {
+		var i int
+		if i, err = hn._retrieveNew(s); err != nil {
 			return
 		}
+		str = str + fmt.Sprintf("|%d %s| ", i, s)
 	}
+	fmt.Println(str + "HN stories.")
 	return
 }
 
-func (hn HNClient) _retrieveNew(autoHNPostType string) (err error) {
+func (hn HNClient) _retrieveNew(autoHNPostType string) (i int, err error) {
 
 	var leastScore int
 	leastScore, err = strconv.Atoi(os.Getenv("AutoHNLeaseScore"))
@@ -101,18 +104,11 @@ func (hn HNClient) _retrieveNew(autoHNPostType string) (err error) {
 	})
 
 	// eliminate stories that scored less than 350
-	var i int
 	var item HNItem
 	for i, item = range storiesItemsList {
 		if item.Score < leastScore {
 			break
 		}
-	}
-	if i < 1 {
-		fmt.Printf("No new HN %s post w/ score > %s found.\n", autoHNPostType, os.Getenv("AutoHNLeaseScore"))
-		return
-	} else {
-		fmt.Printf("found %d %s HN stories.\n", i, autoHNPostType)
 	}
 	storiesItemsList = storiesItemsList[:i]
 
@@ -121,7 +117,7 @@ func (hn HNClient) _retrieveNew(autoHNPostType string) (err error) {
 		savedStoriesIds = append(savedStoriesIds, item.Id)
 	}
 	var mbs MessageBlocks
-	for i := 0; i < len(storiesItemsList); i++ {
+	for i = 0; i < len(storiesItemsList); i++ {
 		mbs, err = hn.hnStoriesToBlocks("", storiesItemsList[i:i+1], true)
 		if err != nil {
 			return

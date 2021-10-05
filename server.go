@@ -23,6 +23,7 @@ func server() {
 	app.Use(logger.New())
 
 	app.Get("/", mw.Home)
+	app.Get("/reddit", func(c *fiber.Ctx) error { return c.SendString("Sup Red 👋!") })
 	app.Post("/", func(c *fiber.Ctx) error { return c.SendString("Hello, World 👋!") })
 	app.Post("/ping", mw.Ping)
 

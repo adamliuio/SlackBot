@@ -32,7 +32,7 @@ func TestSendMarkdownText(t *testing.T) {
 }
 
 func TestUrlRedirect(t *testing.T) {
-	t.Log(utils.GetRedirectedUrl("https://t.co/nxURNgmEvk"))
+	t.Log(utils.CheckUrl("https://t.co/nxURNgmEvk"))
 }
 
 func TestPostToSlack(t *testing.T) {
