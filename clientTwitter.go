@@ -121,7 +121,6 @@ func (tc TwitterClient) oauth1Request(url string) (body []byte) {
 }
 
 func (tc TwitterClient) AutoRetrieveNew() (err error) {
-
 	for listName := range TweetLists {
 		var leastOriginalLikes int
 		var mbList [][]MessageBlock

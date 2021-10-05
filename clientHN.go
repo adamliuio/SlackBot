@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 )
 
 type HNClient struct {
@@ -40,7 +39,6 @@ type HNItem struct {
 const hnFilename string = "ids/ids-hn.json"
 
 func (hn HNClient) AutoRetrieveNew() (err error) {
-	fmt.Println(time.Now().Format("2006-01-02 15:04:05"), ":", "Auto retrieving Hacker news posts... ")
 	var str string = "found "
 	for _, s := range []string{"top", "new", "best"} {
 		var i int
@@ -127,7 +125,6 @@ func (hn HNClient) _retrieveNew(autoHNPostType string) (i int, err error) {
 			return
 		}
 	}
-	fmt.Println("Sent.")
 	j, _ := json.Marshal(savedStoriesIds)
 	utils.WriteFile(j, hnFilename)
 	return

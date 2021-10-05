@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"image"
 	"log"
+	"regexp"
 	"testing"
 	"time"
 
@@ -17,22 +18,23 @@ func TestTime(t *testing.T) {
 }
 
 func TestResizeImage(t *testing.T) {
-	// var url string = "https://i.redd.it/6nnx8o7aqbr71.jpg" //   3,663,667
-	// //  var url string="https://i.redd.it/oglf0dboo9r71.png" //  19,308,260
-	// _, contentLength, err := utils.CheckUrl(url)
-	// if err != nil {
-	// 	return
-	// }
-	// t.Log(contentLength)
-	// if contentLength > int64(2000000) {
-	// 	var reg *regexp.Regexp = regexp.MustCompile(`\/([A-Za-z0-9])\w+.(jpg|png)`)
-	// 	var fn string = reg.FindAllString(url, 1)[0]
-	// 	utils.DownloadFile(url, "data-samples"+fn, false)
-	// }
+	var url string = "https://i.redd.it/6nnx8o7aqbr71.jpg" //   3,663,667
+	//  var url string="https://i.redd.it/oglf0dboo9r71.png" //  19,308,260
+
+	var err error
+	_, contentLength, err := utils.CheckUrl(url)
+	if err != nil {
+		return
+	}
+	t.Log(contentLength)
+	if contentLength > int64(2000000) {
+		var reg *regexp.Regexp = regexp.MustCompile(`\/([A-Za-z0-9])\w+.(jpg|png)`)
+		var fn string = reg.FindAllString(url, 1)[0]
+		utils.DownloadFile(url, "data-samples"+fn, false)
+	}
 
 	var fn string = "data-samples/6nnx8o7aqbr71.jpg"
 	var srcImage image.Image
-	var err error
 
 	if srcImage, err = imaging.Open(fn); err != nil {
 		log.Fatalf("failed to open image: %v", err)

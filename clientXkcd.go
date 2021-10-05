@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"time"
 )
 
 // XKCD
@@ -27,7 +26,6 @@ type xkcdJSON struct {
 }
 
 func (xk XKCDClient) AutoRetrieveNew() (err error) {
-	fmt.Println(time.Now().Format("2006-01-02 15:04:05"), ":", "Auto retrieving new XKCD cartoon... ")
 	var lastID int
 	_ = json.Unmarshal(utils.ReadFile(xkcdFilename), &lastID)
 	lastID++

@@ -26,41 +26,6 @@ var RedditBearerToken RedditToken
 const redditFilename string = "ids/ids-reddit.json"
 const RedditOAuthUrl string = "https://oauth.reddit.com/"
 
-type RedditClient struct {
-	CurrentSubReddit string
-	savedIDs         []string
-}
-
-func (rc RedditClient) RetrieveNew(subReddit string) (err error) {
-	var respBody []byte
-	if respBody, err = rc.RetrieveList(subReddit); err != nil {
-		return
-	}
-	var redditRetrieve RedditRetrieve
-	if err = json.Unmarshal(respBody, &redditRetrieve); err != nil {
-		return
-	}
-	rc.CurrentSubReddit = subReddit
-	if err = rc.SendToSlack(redditRetrieve); err != nil {
-		return
-	}
-	return
-}
-
-func (rc RedditClient) AutoRetrieveNew() (err error) {
-	json.Unmarshal(utils.ReadFile(twitterFilename), &rc.savedIDs)
-	fmt.Println(time.Now().Format("2006-01-02 15:04:05"), ":", "Auto retrieving new Reddit posts... ")
-	var subReddits []string = strings.Split(os.Getenv("AutoRedditSubs"), ",")
-	for _, subReddit := range subReddits {
-		if err = rc.RetrieveNew(subReddit); err != nil {
-			return
-		}
-	}
-	j, _ := json.Marshal(rc.savedIDs)
-	utils.WriteFile(j, redditFilename)
-	return
-}
-
 const RedditTokenRetrivingUrl string = "https://www.reddit.com/api/v1/access_token"
 
 type RedditToken struct {
@@ -98,6 +63,40 @@ type RedditRetrieveChildData struct {
 	Post_hint              string `json:"post_hint,omitempty"` // data with "Selftext" have no "post_hint"
 	Selftext               string `json:"selftext,omitempty"`
 	Permalink              string `json:"permalink,omitempty"`
+}
+
+type RedditClient struct {
+	CurrentSubReddit string
+	savedIDs         []string
+}
+
+func (rc RedditClient) RetrieveNew(subReddit string) (err error) {
+	var respBody []byte
+	if respBody, err = rc.RetrieveList(subReddit); err != nil {
+		return
+	}
+	var redditRetrieve RedditRetrieve
+	if err = json.Unmarshal(respBody, &redditRetrieve); err != nil {
+		return
+	}
+	rc.CurrentSubReddit = subReddit
+	if err = rc.SendToSlack(redditRetrieve); err != nil {
+		return
+	}
+	return
+}
+
+func (rc RedditClient) AutoRetrieveNew() (err error) {
+	json.Unmarshal(utils.ReadFile(twitterFilename), &rc.savedIDs)
+	var subReddits []string = strings.Split(os.Getenv("AutoRedditSubs"), ",")
+	for _, subReddit := range subReddits {
+		if err = rc.RetrieveNew(subReddit); err != nil {
+			return
+		}
+	}
+	j, _ := json.Marshal(rc.savedIDs)
+	utils.WriteFile(j, redditFilename)
+	return
 }
 
 func (rc RedditClient) SendToSlack(redditRetrieve RedditRetrieve) (err error) {
@@ -197,9 +196,6 @@ func (rc RedditClient) formatImageBlock(post RedditRetrieveChildData) (mbarr []M
 }
 
 func (rc RedditClient) ResizeImage(filePath string) {
-	// var url string = "https://i.redd.it/6nnx8o7aqbr71.jpg" //   3,663,667
-	// var url string="https://i.redd.it/oglf0dboo9r71.png" //  19,308,260
-
 	var err error
 	var srcImage image.Image
 
@@ -214,7 +210,6 @@ func (rc RedditClient) ResizeImage(filePath string) {
 }
 
 func (rc RedditClient) RetrievePost(postID string) (respBody []byte, err error) {
-	// https://api.reddit.com/api/info/?id=t3_c93rdt
 	var url string = "https://oauth.reddit.com/api/info/?id=t3_" + postID
 	if respBody, err = utils.HttpRequest("GET", nil, url, [][]string{
 		{"User-Agent", os.Getenv("AutoRedditLeaseScore")},
@@ -225,7 +220,6 @@ func (rc RedditClient) RetrievePost(postID string) (respBody []byte, err error) 
 	return
 }
 func (rc RedditClient) RetrieveList(subReddit string) (respBody []byte, err error) {
-	// curl -H "Authorization: bearer 299518766060-0v26uj5J4cTjV7dohi632ubSHX0BBA" -A "ChangeMeClient/0.1 by adamhleo" https://oauth.reddit.com/r/space/hot > "space-hot.json"
 	subReddit = strings.Trim(subReddit, "/")
 	if time.Now().Unix() > time.Now().Unix()+RedditBearerToken.Expires_in {
 		rc.RenewBearerToken()
@@ -242,8 +236,6 @@ func (rc RedditClient) RetrieveList(subReddit string) (respBody []byte, err erro
 }
 
 func (rc RedditClient) RenewBearerToken() (token RedditToken, err error) {
-	// curl -X POST -d 'grant_type=password&username=adamhleo&password=1990109' --user 'KhW94QNsLKBnjCexd1XCoA:hmTcu5jTZj8EfRny7heb249gPrYXig' https://www.reddit.com/api/v1/access_token
-
 	params := url.Values{}
 	params.Add("grant_type", `password`)
 	params.Add("username", os.Getenv("RedditMyUsername"))

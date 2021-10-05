@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"time"
 )
@@ -15,6 +16,7 @@ func (rou Routines) StartAll() {
 	if flag.Lookup("test.v") == nil { // if this is not in test mode
 		var i int = 0
 		for {
+			fmt.Println(time.Now().Format("2006-01-02 15:04:05"), ":", "Auto retrieving new posts... ")
 			go hn.AutoRetrieveNew() // hacker news
 			go rc.AutoRetrieveNew() // reddit
 			go tc.AutoRetrieveNew() // twitter
