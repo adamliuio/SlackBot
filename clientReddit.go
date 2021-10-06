@@ -74,7 +74,7 @@ type RedditClient struct {
 
 func (rc RedditClient) AutoRetrieveNew() (err error) {
 	rc.RetrieveStats = make(map[string]int)
-	json.Unmarshal(utils.ReadFile(twitterFilename), &rc.savedIDs)
+	json.Unmarshal(utils.ReadFile(redditFilename), &rc.savedIDs)
 	for _, profile := range []string{"Adam", "Logen"} {
 		rc.CurrentProfile = profile
 		var subReddits []string = strings.Split(os.Getenv("AutoRedditSubs"+profile), ",")
