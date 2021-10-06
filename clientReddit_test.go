@@ -4,12 +4,34 @@ import (
 	"encoding/json"
 	"image"
 	"log"
+	"os"
 	"regexp"
 	"testing"
 	"time"
 
 	"github.com/disintegration/imaging"
 )
+
+func TestRedditAutoRetrieveNew(t *testing.T) {
+	if err := rc.AutoRetrieveNew(); err != nil {
+		log.Panicln(err)
+	}
+}
+
+func TestGetSubRedditList(t *testing.T) {
+	url := RedditOAuthUrl + "api/v1/me/prefs"
+	rc.RenewBearerToken()
+
+	respBody, err := utils.HttpRequest("GET", nil, url, [][]string{
+		{"User-Agent", os.Getenv("AutoRedditLeaseScore")},
+		{"Authorization", "bearer " + rc.RedditBearerToken.Access_token},
+	})
+	if err != nil {
+		// {"message": "Unauthorized", "error": 401}
+		return
+	}
+	t.Log(string(respBody))
+}
 
 func TestTime(t *testing.T) {
 	t.Log(time.Now().Unix())
@@ -57,7 +79,7 @@ func TestFormatData(t *testing.T) {
 }
 
 func TestRetrieveRedditPost(t *testing.T) {
-	RedditBearerToken = RedditToken{
+	rc.RedditBearerToken = RedditToken{
 		Access_token: "299518766060-7cxsDSSSOP7mV-KWFUQcBRVHYfirBg",
 		Token_type:   "bearer",
 		Expires_in:   3600,
@@ -73,12 +95,12 @@ func TestRetrieveRedditPost(t *testing.T) {
 }
 
 func TestRedditRetrieve(t *testing.T) {
-	RedditBearerToken = RedditToken{
-		Access_token: "299518766060-7cxsDSSSOP7mV-KWFUQcBRVHYfirBg",
-		Token_type:   "bearer",
-		Expires_in:   3600,
-		Scope:        "*",
-	}
+	// rc.RedditBearerToken = RedditToken{
+	// 	Access_token: "299518766060-7cxsDSSSOP7mV-KWFUQcBRVHYfirBg",
+	// 	Token_type:   "bearer",
+	// 	Expires_in:   3600,
+	// 	Scope:        "*",
+	// }
 
 	var respBody []byte
 	var err error
@@ -86,15 +108,14 @@ func TestRedditRetrieve(t *testing.T) {
 		t.Fatal(err)
 	}
 	// t.Log(string(respBody))
-
-	utils.WriteFile(respBody, "data-samples/reddit-Entrepreneur-hot.json")
+	utils.WriteFile(respBody, "data-samples/t.json")
 }
 
 func TestRedditGetBearerToken(t *testing.T) {
 	var err error
-	if RedditBearerToken, err = rc.RenewBearerToken(); err != nil {
+	if rc.RedditBearerToken, err = rc.RenewBearerToken(); err != nil {
 		t.Fatal(err)
 	}
 
-	t.Logf("bearerToken: %+v\n", RedditBearerToken)
+	t.Logf("bearerToken: %+v\n", rc.RedditBearerToken)
 }

@@ -41,7 +41,7 @@ func TestPostToSlack(t *testing.T) {
 	var resp *http.Response
 	var jsonStr string = `{"text":"Allow me to reintroduce myself!"}`
 	var reqBody = []byte(jsonStr)
-	req, err = http.NewRequest(http.MethodPost, os.Getenv("SlackWebHookUrlTest"), bytes.NewBuffer(reqBody))
+	req, err = http.NewRequest(http.MethodPost, os.Getenv("SlackWebHookUrlRedditLogen"), bytes.NewBuffer(reqBody))
 	if err != nil {
 		return
 	}
