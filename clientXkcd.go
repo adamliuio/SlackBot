@@ -9,8 +9,6 @@ import (
 // XKCD
 type XKCDClient struct{}
 
-const xkcdFilename string = "ids/ids-xkcd.json"
-
 type xkcdJSON struct {
 	Month      string `json:"month,omitempty"`
 	Num        int    `json:"num,omitempty"`

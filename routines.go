@@ -23,6 +23,9 @@ func (rou Routines) StartAll() {
 			if i%12 == 0 {          // run every 12 hours
 				go xk.AutoRetrieveNew() // xkcd
 			}
+			if i%24 == 0 { // run every 24 hours
+				go hn.AutoHNClassic() // hacker news classics
+			}
 			i++
 			time.Sleep(time.Hour)
 		}

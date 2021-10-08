@@ -2,9 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"image"
 	"log"
-	"os"
 	"regexp"
 	"testing"
 	"time"
@@ -23,7 +23,7 @@ func TestGetSubRedditList(t *testing.T) {
 	rc.RenewBearerToken()
 
 	respBody, err := utils.HttpRequest("GET", nil, url, [][]string{
-		{"User-Agent", os.Getenv("AutoRedditLeaseScore")},
+		{"User-Agent", fmt.Sprintf("%d", Params.AutoRedditLeaseScore)},
 		{"Authorization", "bearer " + rc.RedditBearerToken.Access_token},
 	})
 	if err != nil {

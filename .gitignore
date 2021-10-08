@@ -9,5 +9,5 @@ go.sum
 files
 gmail-credentials.json
 data-samples
-ids
+data
 sync-*.sh

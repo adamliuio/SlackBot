@@ -13,18 +13,12 @@ import (
 	"os"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/disintegration/imaging"
 )
-
-const redditFilename string = "ids/ids-reddit.json"
-const RedditOAuthUrl string = "https://oauth.reddit.com/"
-
-const RedditTokenRetrivingUrl string = "https://www.reddit.com/api/v1/access_token"
 
 type RedditToken struct {
 	Access_token string `json:"access_token,omitempty"`
@@ -68,28 +62,32 @@ type RedditClient struct {
 	CurrentSubReddit  string
 	CurrentProfile    string
 	savedIDs          []string
+	newIdBatches      map[string][]string
 	RedditBearerToken RedditToken
 	RetrieveStats     map[string]int
 }
 
 func (rc RedditClient) AutoRetrieveNew() (err error) {
 	rc.RetrieveStats = make(map[string]int)
+	rc.newIdBatches = make(map[string][]string)
 	json.Unmarshal(utils.ReadFile(redditFilename), &rc.savedIDs)
 	for _, profile := range []string{"Adam", "Logen"} {
 		rc.CurrentProfile = profile
 		var subReddits []string = strings.Split(os.Getenv("AutoRedditSubs"+profile), ",")
 		for _, subReddit := range subReddits {
+			rc.CurrentSubReddit = subReddit
 			if err = rc.RetrieveNew(subReddit); err != nil {
 				return
 			}
 		}
 	}
-	j, _ := json.Marshal(rc.savedIDs)
-	utils.WriteFile(j, redditFilename)
 	var statStr string = "Reddit:"
 	for sub, num := range rc.RetrieveStats {
+		rc.savedIDs = append(rc.savedIDs, rc.newIdBatches[sub]...)
 		statStr += fmt.Sprintf("\n%s: %d", sub, num)
 	}
+	j, _ := json.Marshal(rc.savedIDs)
+	utils.WriteFile(j, redditFilename)
 	log.Println(statStr)
 	return
 }
@@ -103,7 +101,6 @@ func (rc RedditClient) RetrieveNew(subReddit string) (err error) {
 	if err = json.Unmarshal(respBody, &redditRetrieve); err != nil {
 		return
 	}
-	rc.CurrentSubReddit = subReddit
 	if err = rc.SendToSlack(redditRetrieve); err != nil {
 		return
 	}
@@ -117,15 +114,22 @@ func (rc RedditClient) SendToSlack(redditRetrieve RedditRetrieve) (err error) {
 	})
 
 	var leastUps, qualifiedCount int
-	leastUps, _ = strconv.Atoi(os.Getenv("AutoRedditLeaseScore"))
+	leastUps = Params.AutoRedditLeaseScore
 	var wg = sync.WaitGroup{}
 	for _, kid := range redditRetrieve.Data.Children {
 		qualifiedCount++
 		var post RedditRetrieveChildData = kid.Data
-		if post.Ups < leastUps {
+		var exist bool = false
+		for _, existId := range rc.savedIDs { // don't save saved ids
+			if post.Id == existId {
+				exist = true
+				break
+			}
+		}
+		if post.Ups < leastUps || exist {
 			continue
 		} else {
-			rc.savedIDs = append(rc.savedIDs, post.Id)
+			rc.newIdBatches[rc.CurrentSubReddit] = append(rc.newIdBatches[rc.CurrentSubReddit], post.Id)
 		}
 		wg.Add(1)
 		go func(post RedditRetrieveChildData) {
@@ -187,14 +191,10 @@ func (rc RedditClient) formatImageBlock(post RedditRetrieveChildData) (mbarr []M
 	if _, imageSize, err = utils.CheckUrl(imageUrl); err != nil {
 		return
 	}
-	if imageSize > int64(2000000) {
+	if imageSize > int64(2000000) && Hostname != "MacBook-Pro.local" { // if image is bigger than 2mb & not on my local computer
 		var reg *regexp.Regexp = regexp.MustCompile(`\/([A-Za-z0-9])\w+.(jpg|png)`)
 		var tempFolder string = "/tmp"
 		var urlPrefix string = "https://naughtymonsta.digital/file"
-		if Hostname == "MacBook-Pro.local" {
-			tempFolder = "data-samples"
-			urlPrefix = "https://i.redd.it"
-		}
 		var filePath string = tempFolder + reg.FindAllString(imageUrl, 1)[0]
 		utils.DownloadFile(imageUrl, filePath, false)
 		rc.ResizeImage(filePath)
@@ -225,7 +225,7 @@ func (rc RedditClient) ResizeImage(filePath string) {
 func (rc RedditClient) RetrievePost(postID string) (respBody []byte, err error) {
 	var url string = "https://oauth.reddit.com/api/info/?id=t3_" + postID
 	if respBody, err = utils.HttpRequest("GET", nil, url, [][]string{
-		{"User-Agent", os.Getenv("AutoRedditLeaseScore")},
+		{"User-Agent", fmt.Sprintf("%d", Params.AutoRedditLeaseScore)},
 		{"Authorization", "bearer " + rc.RedditBearerToken.Access_token},
 	}); err != nil {
 		return
@@ -240,7 +240,7 @@ func (rc RedditClient) RetrieveList(subReddit string) (respBody []byte, err erro
 	}
 	var url string = RedditOAuthUrl + subReddit + "/hot.json?raw_json=1"
 	if respBody, err = utils.HttpRequest("GET", nil, url, [][]string{
-		{"User-Agent", os.Getenv("AutoRedditLeaseScore")},
+		{"User-Agent", fmt.Sprintf("%d", Params.AutoRedditLeaseScore)},
 		{"Authorization", "bearer " + rc.RedditBearerToken.Access_token},
 	}); err != nil {
 		// {"message": "Unauthorized", "error": 401}
@@ -250,11 +250,11 @@ func (rc RedditClient) RetrieveList(subReddit string) (respBody []byte, err erro
 }
 
 func (rc RedditClient) RenewBearerToken() (token RedditToken, err error) {
-	params := url.Values{}
-	params.Add("grant_type", `password`)
-	params.Add("username", os.Getenv("RedditMyUsername"))
-	params.Add("password", os.Getenv("RedditMyPassword"))
-	var body *strings.Reader = strings.NewReader(params.Encode())
+	urlParams := url.Values{}
+	urlParams.Add("grant_type", `password`)
+	urlParams.Add("username", os.Getenv("RedditMyUsername"))
+	urlParams.Add("password", os.Getenv("RedditMyPassword"))
+	var body *strings.Reader = strings.NewReader(urlParams.Encode())
 
 	var req *http.Request
 	var resp *http.Response

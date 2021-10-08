@@ -7,9 +7,9 @@ import (
 	urlUtils "net/url"
 	"os"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 type HNClient struct {
@@ -27,7 +27,7 @@ type HNItem struct {
 	Kids        []int  // The ids of the item's comments, in ranked display order.
 	Parent      int    // The comment's parent: either another comment or the relevant story.
 	Score       int    // The story's score, or the votes for a pollopt.
-	Time        int    // Creation date of the item, in Unix Time.
+	Time        int64  // Creation date of the item, in Unix Time.
 	Title       string // The title of the story, poll or job. HTML.
 	Url         string // The URL of the story.
 	Text        string // The comment, story or poll text. HTML.
@@ -36,7 +36,89 @@ type HNItem struct {
 	Parts       []int  // A list of related pollopts, in display order.
 }
 
-const hnFilename string = "ids/ids-hn.json"
+type HNAlgoliaSearchResults struct {
+	Hits []HNAlgoliaSearchResult `json:"hits,omitempty"`
+}
+
+type HNAlgoliaSearchResult struct {
+	Created_at   string `json:"created_at,omitempty"`
+	Created_at_i int64  `json:"created_at_i,omitempty"`
+	Title        string `json:"title,omitempty"`
+	Url          string `json:"url,omitempty"`
+	Points       int    `json:"points,omitempty"`
+	Num_comments int    `json:"num_comments,omitempty"`
+	ObjectID     string `json:"objectID,omitempty"` // story item id
+}
+
+func (hn HNClient) AutoHNClassic() {
+	var results HNAlgoliaSearchResults
+	var err error
+	if results, err = hn.RetrieveHNClassic(); err != nil {
+		log.Fatalln(err)
+	}
+	if err = hn.classicsFormatData(results); err != nil {
+		log.Fatalln(err)
+	}
+}
+
+func (hn HNClient) RetrieveHNClassic() (results HNAlgoliaSearchResults, err error) {
+	var dayBegin, dayEnd time.Time
+	var layoutISO string = "2006-01-02"
+	if dayBegin, err = time.Parse(layoutISO, Params.LatestHNClassicDate); err != nil {
+		return
+	}
+	for {
+		dayEnd = dayBegin.AddDate(0, 0, Params.HNClassicDaysFromDate)
+		var url string = fmt.Sprintf(algoliaTimeFilterEndpoint, dayBegin.Unix(), dayEnd.Unix())
+		var respBody []byte
+		if respBody, err = utils.HttpRequest("GET", nil, url, nil); err != nil {
+			return
+		}
+		if err = json.Unmarshal(respBody, &results); err != nil {
+			return
+		}
+
+		sort.Slice(results.Hits, func(i, j int) bool {
+			return results.Hits[i].Points > results.Hits[j].Points
+		})
+		var hasQualified bool = false
+		for _, item := range results.Hits {
+			if item.Points > Params.AutoHNRenewLeastScore {
+				hasQualified = true
+				break
+			}
+		}
+		if hasQualified {
+			Params.LatestHNClassicDate = dayEnd.Format(layoutISO)
+			j, _ := json.Marshal(Params)
+			utils.WriteFile(j, paramsFilename)
+			return
+		} else {
+			dayBegin = dayEnd
+		}
+		if Hostname == "MacBook-Pro.local" {
+			utils.WriteFile(respBody, "data-samples/t.json")
+		}
+	}
+}
+
+func (hn HNClient) classicsFormatData(results HNAlgoliaSearchResults) (err error) {
+	var story HNAlgoliaSearchResult
+	for _, story = range results.Hits {
+		var mbarr = []MessageBlock{}
+		mbarr = append(mbarr, MessageBlock{Type: "divider"})
+		var text string = fmt.Sprintf(
+			"*<%s|%s>*\n[<%s|hn>] Score: %d, Comments: %d\n@%s [%s]",
+			story.Url, story.Title, fmt.Sprintf(hn.PageUrlTmplt, story.ObjectID), story.Points,
+			story.Num_comments, hn.parseHostname(story.Url), utils.ConvertUnixTime(story.Created_at_i),
+		)
+		mbarr = append(mbarr, sc.CreateTextBlock(text, "mrkdwn", ""))
+		if err = sc.SendBlocks(MessageBlocks{Blocks: mbarr}, os.Getenv("SlackWebHookUrlHNClassics")); err != nil { // send the new and not published stories to slack #hacker-news
+			return
+		}
+	}
+	return
+}
 
 func (hn HNClient) AutoRetrieveNew() (err error) {
 	var str string = "found "
@@ -53,19 +135,14 @@ func (hn HNClient) AutoRetrieveNew() (err error) {
 
 func (hn HNClient) _retrieveNew(autoHNPostType string) (i int, err error) {
 
-	var leastScore int
-	leastScore, err = strconv.Atoi(os.Getenv("AutoHNLeaseScore"))
-	if err != nil {
-		return
-	}
+	var leastScore int = Params.AutoHNRenewLeastScore
 
 	var savedStoriesIds []int
 	_ = json.Unmarshal(utils.ReadFile(hnFilename), &savedStoriesIds)
 
 	var newIdsList []int
 	var _idsList []int
-	_idsList, err = hn.getStoriesIds(autoHNPostType) // get 500 newest ids
-	if err != nil {
+	if _idsList, err = hn.getStoriesIds(autoHNPostType); err != nil { // get 500 newest ids
 		return
 	}
 
@@ -116,12 +193,10 @@ func (hn HNClient) _retrieveNew(autoHNPostType string) (i int, err error) {
 	}
 	var mbs MessageBlocks
 	for i = 0; i < len(storiesItemsList); i++ {
-		mbs, err = hn.hnStoriesToBlocks("", storiesItemsList[i:i+1], true)
-		if err != nil {
+		if mbs, err = hn.formatData("", storiesItemsList[i:i+1], true); err != nil {
 			return
 		}
-		err = sc.SendBlocks(mbs, os.Getenv("SlackWebHookUrlHN")) // send the new and not published stories to slack #hacker-news
-		if err != nil {
+		if err = sc.SendBlocks(mbs, os.Getenv("SlackWebHookUrlHN")); err != nil { // send the new and not published stories to slack #hacker-news
 			return
 		}
 	}
@@ -130,24 +205,21 @@ func (hn HNClient) _retrieveNew(autoHNPostType string) (i int, err error) {
 	return
 }
 
-func (hn HNClient) RetrieveByCommand(storyTypeInfo string) (msgBlocks MessageBlocks, err error) {
-
+func (hn HNClient) RetrieveByCommand(storyTypeInfo string) (mbs MessageBlocks, err error) {
 	var storyType string
 	var storiesRange []int
 
-	storyType, storiesRange, err = regexStoryTypeRange(storyTypeInfo) // parsing storyType & storiesRange
-	if err != nil {
-		msgBlocks = MessageBlocks{Text: err.Error()}
+	if storyType, storiesRange, err = regexStoryTypeRange(storyTypeInfo); err != nil { // parsing storyType & storiesRange
+		mbs = MessageBlocks{Text: err.Error()}
 		return
 	}
 
 	var stories []HNItem
-	stories, err = hn.getStories(storyType, storiesRange)
-	if err != nil {
-		msgBlocks = MessageBlocks{Text: err.Error()}
+	if stories, err = hn.getStories(storyType, storiesRange); err != nil {
+		mbs = MessageBlocks{Text: err.Error()}
 		return
 	}
-	msgBlocks, err = hn.hnStoriesToBlocks(storyTypeInfo, stories, false)
+	mbs, err = hn.formatData(storyTypeInfo, stories, false)
 	return
 }
 
@@ -158,8 +230,7 @@ func (hn HNClient) getStories(storyType string, storiesRange []int) (storiesItem
 		return
 	}
 	var newIdsList []int
-	newIdsList, err = hn.getStoriesIds(storyType)
-	if err != nil {
+	if newIdsList, err = hn.getStoriesIds(storyType); err != nil {
 		return
 	}
 	storiesItemsList = hn.getStoriesItems(newIdsList)
@@ -170,11 +241,11 @@ func (hn HNClient) getStories(storyType string, storiesRange []int) (storiesItem
 	return
 }
 
-func (hn HNClient) hnStoriesToBlocks(storyTypeInfo string, stories []HNItem, useDivider bool) (msgBlocks MessageBlocks, err error) {
+func (hn HNClient) formatData(storyTypeInfo string, stories []HNItem, useDivider bool) (mbs MessageBlocks, err error) {
 	var story HNItem
-	var messageBlocks []MessageBlock
+	var mbarr []MessageBlock
 	if storyTypeInfo != "" {
-		messageBlocks = append(messageBlocks, sc.CreateTextBlock(fmt.Sprintf("*%s*", storyTypeInfo), "mrkdwn", ""))
+		mbarr = append(mbarr, sc.CreateTextBlock(fmt.Sprintf("*%s*", storyTypeInfo), "mrkdwn", ""))
 	}
 	for _, story = range stories {
 		var text string = fmt.Sprintf(
@@ -183,18 +254,19 @@ func (hn HNClient) hnStoriesToBlocks(storyTypeInfo string, stories []HNItem, use
 			len(story.Kids), hn.parseHostname(story.Url), utils.ConvertUnixTime(story.Time),
 		)
 		if useDivider {
-			messageBlocks = append(messageBlocks, MessageBlock{Type: "divider"})
+			mbarr = append(mbarr, MessageBlock{Type: "divider"})
 		}
-		messageBlocks = append(messageBlocks, sc.CreateTextBlock(text, "mrkdwn", ""))
+		mbarr = append(mbarr, sc.CreateTextBlock(text, "mrkdwn", ""))
 	}
 
-	msgBlocks = MessageBlocks{Blocks: messageBlocks}
+	mbs = MessageBlocks{Blocks: mbarr}
 	return
 }
 
 func (hn HNClient) parseHostname(hostname string) string {
-	u, err := urlUtils.Parse(hostname)
-	if err != nil {
+	var err error
+	var u *urlUtils.URL
+	if u, err = urlUtils.Parse(hostname); err != nil {
 		return fmt.Sprintln("url has issue:", err.Error())
 	}
 	return strings.ReplaceAll(u.Hostname(), "www.", "")
@@ -215,12 +287,12 @@ func (hn HNClient) getStoriesItems(newIdsList []int) (storiesItemsList []HNItem)
 			if !ok {
 				log.Fatalf("id: %d is no ok, detail: %+v\n", id, item)
 			}
-			b, err := json.Marshal(itemIntf)
-			if err != nil {
+			var b []byte
+			var err error
+			if b, err = json.Marshal(itemIntf); err != nil {
 				log.Fatalln(err)
 			}
-			err = json.Unmarshal(b, &item)
-			if err != nil {
+			if err = json.Unmarshal(b, &item); err != nil {
 				log.Fatalln(err)
 			}
 
@@ -246,8 +318,7 @@ func (hn HNClient) getStoriesIds(storyType string) (newIdsList []int, err error)
 	// top [500], new [500], best [200]
 	var url string = fmt.Sprintf(hn.StoriesUrlTmplt, storyType)
 	var body []byte
-	body, err = utils.HttpRequest("GET", nil, url, nil)
-	if err != nil {
+	if body, err = utils.HttpRequest("GET", nil, url, nil); err != nil {
 		log.Fatalln(err)
 	}
 

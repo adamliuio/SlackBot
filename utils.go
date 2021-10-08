@@ -87,8 +87,8 @@ func (u Utils) dealWithError(err error, fn, url string, ignoreErr bool) {
 	}
 }
 
-func (u Utils) ConvertUnixTime(unixTs int) (tm string) {
-	tm = time.Unix(int64(unixTs), 0).Format("01-02")
+func (u Utils) ConvertUnixTime(unixTs int64) (tm string) {
+	tm = time.Unix(unixTs, 0).Format("2006-01-02")
 	return
 }
 

@@ -17,24 +17,6 @@ import (
 
 type TwitterClient struct{}
 
-const convoEndpoint string = "https://api.twitter.com/2/tweets/search/recent?query=conversation_id:%s from:%s to:%s&max_results=100&expansions=author_id,in_reply_to_user_id,referenced_tweets.id&tweet.fields=in_reply_to_user_id,author_id,created_at,conversation_id"
-const usersLookupEndpoint string = "https://api.twitter.com/2/users%s&user.fields=created_at,description,entities,id,location,name,pinned_tweet_id,profile_image_url,protected,url,username,verified,withheld&expansions=pinned_tweet_id&tweet.fields=attachments,author_id,conversation_id,created_at,entities,geo,id,in_reply_to_user_id,lang,possibly_sensitive,referenced_tweets,source,text,withheld"
-const tweetLoopUpEndpoint string = "https://api.twitter.com/1.1/statuses/show.json?id=%s&tweet_mode=extended"
-const listEndpoint string = "https://api.twitter.com/1.1/lists/statuses.json?list_id=%s&count=1000&tweet_mode=extended"
-const twitterFilename string = "ids/ids-twitter.json"
-
-// const tweetsEndpoint string = "https://api.twitter.com/2/tweets?ids=%s&tweet.fields=public_metrics,attachments,conversation_id,author_id,created_at,entities,geo,id,in_reply_to_user_id,lang,possibly_sensitive,referenced_tweets,source,text"
-
-var TweetLists = map[string]string{
-	"Makers":        "1229215345526722560",
-	"Entrepreneurs": "1229216130662723584",
-	"Greats":        "1310225357019074562",
-	"Investors":     "1237393320378118149",
-	"Physicists":    "1394817230630572034",
-	"YouTubers":     "1229243949950201856",
-	"Writters":      "1286864227475447808",
-}
-
 func (tc TwitterClient) UnmarshalTweet() (tweetList TweetList) {
 	var bytes []byte = utils.ReadFile("data-samples/tweet.json")
 	_ = json.Unmarshal(bytes, &tweetList)
@@ -122,9 +104,8 @@ func (tc TwitterClient) oauth1Request(url string) (body []byte) {
 
 func (tc TwitterClient) AutoRetrieveNew() (err error) {
 	for listName := range TweetLists {
-		var leastOriginalLikes int
+		var leastOriginalLikes int = Params.AutoTwitterLeastOriginalLikes
 		var mbList [][]MessageBlock
-		leastOriginalLikes, _ = strconv.Atoi(os.Getenv("AutoTwitterLeastOriginalLikes"))
 		mbList, err = tc.retrieveTweets(listName, leastOriginalLikes, true)
 		if err != nil {
 			return
@@ -193,8 +174,7 @@ func (tc TwitterClient) retrieveTweets(listName string, leastLikes int, saveIDs 
 		var retweet *Tweet = listTweet.Retweeted_Status
 		var quoted *Tweet = listTweet.Quoted_Status
 		var exist bool = false
-		var leastRetweetLikes int
-		leastRetweetLikes, _ = strconv.Atoi(os.Getenv("AutoTwitterLeastRetweetLikes"))
+		var leastRetweetLikes int = Params.AutoTwitterLeastOriginalLikes
 		if listTweet.Favorite_Count >= leastLikes || (retweet != nil && retweet.Favorite_Count >= leastRetweetLikes) || (quoted != nil && quoted.Favorite_Count >= leastRetweetLikes) {
 			for _, savedId := range savedTweetIds {
 				if listTweet.Id_Str == savedId {

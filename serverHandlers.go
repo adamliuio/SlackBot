@@ -49,8 +49,10 @@ func (mw Middlewares) Commands(c *fiber.Ctx) error {
 		return c.JSON(mw.commandCommands())
 	case "/hn":
 		return c.JSON(mw.commandHn(cmd)) // "/hn top 10"
+	case "/hnclassicsnew":
+		return c.JSON(mw.commandHnClassicNew()) // "/hnclassicsnew"
 	case "/todo":
-		return mw.commandToDo(cmd) // "/todo do something"
+		return c.JSON(mw.commandToDo(cmd)) // "/todo do something"
 	case "/twt":
 		return c.JSON(mw.commandTwitter(cmd)) // /twt Makers 5
 	case "/xkcd":
@@ -67,7 +69,12 @@ func (mw Middlewares) commandCommands() (mbs MessageBlocks) {
 	return mbs
 }
 
-func (mw Middlewares) commandToDo(cmd *SlashCommand) error {
+func (mw Middlewares) commandHnClassicNew() MessageBlocks {
+	hn.AutoHNClassic()
+	return sc.CreateTextBlocks("new batch of hn classics sent", "mrkdwn", "")
+}
+
+func (mw Middlewares) commandToDo(cmd *SlashCommand) MessageBlocks {
 	var todoStrs []string = strings.Split(cmd.Text, "\n")
 	for _, str := range todoStrs {
 		var mbs MessageBlocks
@@ -93,7 +100,7 @@ func (mw Middlewares) commandToDo(cmd *SlashCommand) error {
 			log.Panic(err)
 		}
 	}
-	return nil
+	return sc.CreateTextBlocks("to-do added.", "plain_text", "")
 }
 
 func (mw Middlewares) commandHn(cmd *SlashCommand) (mbs MessageBlocks) {
