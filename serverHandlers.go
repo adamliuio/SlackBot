@@ -70,8 +70,8 @@ func (mw Middlewares) commandCommands() (mbs MessageBlocks) {
 }
 
 func (mw Middlewares) commandHnClassicNew() MessageBlocks {
-	hn.AutoHNClassic()
-	return sc.CreateTextBlocks("new batch of hn classics sent", "mrkdwn", "")
+	go hn.AutoHNClassic()
+	return sc.CreateTextBlocks("new batch of hn classics on the way", "mrkdwn", "")
 }
 
 func (mw Middlewares) commandToDo(cmd *SlashCommand) MessageBlocks {

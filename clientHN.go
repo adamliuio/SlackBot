@@ -54,10 +54,15 @@ func (hn HNClient) AutoHNClassic() {
 	var results HNAlgoliaSearchResults
 	var err error
 	if results, err = hn.RetrieveHNClassic(); err != nil {
-		log.Fatalln(err)
+		if err.Error() == "invalid character 'S' looking for beginning of value" {
+			hn.AutoHNClassic()
+			return
+		} else {
+			utils.DealWithError(err)
+		}
 	}
 	if err = hn.classicsFormatData(results); err != nil {
-		log.Fatalln(err)
+		utils.DealWithError(err)
 	}
 }
 

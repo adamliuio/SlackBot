@@ -3,12 +3,15 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	"runtime"
+	"strings"
 	"time"
 )
 
@@ -46,7 +49,7 @@ func (u Utils) HttpRequest(requestMethod string, reqBody []byte, url string, hea
 func (u Utils) ReadFile(filename string) (f []byte) {
 	var err error
 	if f, err = ioutil.ReadFile(filename); err != nil {
-		log.Printf("%s not found", filename)
+		log.Printf("%s not found: %s", filename, err)
 	}
 	return
 }
@@ -58,32 +61,51 @@ func (u Utils) WriteFile(b []byte, filename string) (err error) {
 func (u Utils) DownloadFile(url, fn string, ignoreErr bool) {
 
 	// Create blank file
-	file, err := os.Create(fn)
-	u.dealWithError(err, fn, url, ignoreErr)
+	var file *os.File
+	var err error
+	if file, err = os.Create(fn); err != nil {
+		u.DealWithError(err)
+	}
 	client := http.Client{
 		CheckRedirect: func(r *http.Request, via []*http.Request) error {
 			r.URL.Opaque = r.URL.Path
 			return nil
 		},
 	}
+
 	// Put content on file
-	resp, err := client.Get(url)
-	u.dealWithError(err, fn, url, ignoreErr)
+	var resp *http.Response
+	if resp, err = client.Get(url); err != nil {
+		u.DealWithError(err)
+	}
 	defer resp.Body.Close()
 
-	_, err = io.Copy(file, resp.Body)
-	u.dealWithError(err, fn, url, ignoreErr)
+	if _, err = io.Copy(file, resp.Body); err != nil {
+		u.DealWithError(err)
+	}
 	defer file.Close()
 }
 
-func (u Utils) dealWithError(err error, fn, url string, ignoreErr bool) {
-	if err != nil {
-		if ignoreErr {
-			log.Println(err)
-			sc.SendPlainText(fmt.Sprintf(`Error: %s\nwhen downloading "%s"\nfrom "%s"`, err.Error(), fn, url), os.Getenv("SlackWebHookUrlTest"))
-		} else {
-			log.Panic(err)
-		}
+func (u Utils) DealWithError(err error) {
+	var file, wddir string
+	var line int
+	var ok bool
+
+	if _, file, line, ok = runtime.Caller(1); !ok {
+		log.Fatalf("error when \"utils.DealWithError\" called from %s#%d\n", file, line)
+	}
+
+	var e error
+	if wddir, e = os.Getwd(); e != nil {
+		log.Fatalln(e)
+	}
+	file = strings.ReplaceAll(file, wddir, ".")
+	log.Println(wddir)
+	var errFmt string = "Error: \"%s\" @%s"
+	if flag.Lookup("test.v") == nil && Hostname != "MacBook-Pro.local" { // if this is not in production mode & not on local computer
+		sc.SendPlainText(fmt.Sprintf(errFmt, err.Error(), file), os.Getenv("SlackWebHookUrlTest"))
+	} else {
+		log.Fatalf(errFmt, err.Error(), file)
 	}
 }
 
