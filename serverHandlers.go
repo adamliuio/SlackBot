@@ -49,6 +49,8 @@ func (mw Middlewares) Commands(c *fiber.Ctx) error {
 		return c.JSON(mw.commandCommands())
 	case "/hn":
 		return c.JSON(mw.commandHn(cmd)) // "/hn top 10"
+	case "/hnsearch":
+		return c.JSON(mw.commandHnSearch()) // "/hn top 10"
 	case "/hnclassicsnew":
 		return c.JSON(mw.commandHnClassicNew()) // "/hnclassicsnew"
 	case "/todo":
@@ -67,11 +69,6 @@ func (mw Middlewares) commandCommands() (mbs MessageBlocks) {
 	var cmdStr string = "Your friendly commands reminder:\n📺 */command*: returns all your commands for you to see\n📰 */hn* (/hn top 10-20) returns a list of buttons for retrieving buttons to interact with Hacker News."
 	mbs = sc.CreateTextBlocks(cmdStr, "mrkdwn", "")
 	return mbs
-}
-
-func (mw Middlewares) commandHnClassicNew() MessageBlocks {
-	go hn.AutoHNClassic()
-	return sc.CreateTextBlocks("new batch of hn classics on the way", "mrkdwn", "")
 }
 
 func (mw Middlewares) commandToDo(cmd *SlashCommand) MessageBlocks {
@@ -110,6 +107,16 @@ func (mw Middlewares) commandHn(cmd *SlashCommand) (mbs MessageBlocks) {
 		log.Println(err)
 	}
 	return mbs
+}
+
+func (mw Middlewares) commandHnClassicNew() MessageBlocks {
+	go hn.AutoHNClassic()
+	return sc.CreateTextBlocks("new batch of hn classics on the way", "plain_text", "")
+}
+
+func (mw Middlewares) commandHnSearch() MessageBlocks {
+	go hn.AutoHNClassic()
+	return sc.CreateTextBlocks("<https://hn.algolia.com|HN Algolia>", "mrkdwn", "")
 }
 
 func (mw Middlewares) commandTwitter(cmd *SlashCommand) (mbs MessageBlocks) {
