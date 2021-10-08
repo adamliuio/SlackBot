@@ -109,7 +109,7 @@ func (hn HNClient) classicsFormatData(results HNAlgoliaSearchResults) (err error
 		mbarr = append(mbarr, MessageBlock{Type: "divider"})
 		var text string = fmt.Sprintf(
 			"*<%s|%s>*\n[<%s|hn>] Score: %d, Comments: %d\n@%s [%s]",
-			story.Url, story.Title, fmt.Sprintf(hn.PageUrlTmplt, story.ObjectID), story.Points,
+			story.Url, story.Title, fmt.Sprintf("https://news.ycombinator.com/item?id=%s", story.ObjectID), story.Points,
 			story.Num_comments, hn.parseHostname(story.Url), utils.ConvertUnixTime(story.Created_at_i),
 		)
 		mbarr = append(mbarr, sc.CreateTextBlock(text, "mrkdwn", ""))
