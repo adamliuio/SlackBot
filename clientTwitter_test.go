@@ -48,7 +48,7 @@ func TestRegex(t *testing.T) {
 func TestYolo(t *testing.T) { // pulls a tweet and send to slack
 	var tweets []Tweet
 	var err error
-	if tweets, err = tc.LookUpTweets([]string{"1445125545767817220"}); err != nil {
+	if tweets, err = tc.LookUpTweets([]string{"1449922164744982529"}); err != nil {
 		t.Fatal(err)
 	}
 	_ = tweets

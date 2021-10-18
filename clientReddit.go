@@ -195,12 +195,17 @@ func (rc RedditClient) formatImageBlock(post RedditRetrieveChildData) (mbarr []M
 		var reg *regexp.Regexp = regexp.MustCompile(`\/([A-Za-z0-9])\w+.(jpg|png)`)
 		var tempFolder string = "/tmp"
 		var urlPrefix string = "https://naughtymonsta.digital/file"
-		var filePath string = tempFolder + reg.FindAllString(imageUrl, 1)[0]
-		utils.DownloadFile(imageUrl, filePath, false)
-		rc.ResizeImage(filePath)
-		imageUrl = strings.ReplaceAll(filePath, tempFolder, "")
-		mbarr = append(mbarr, sc.CreateImageBlock(urlPrefix+imageUrl, post.Title))
-		mbarr = append(mbarr, sc.CreateTextBlock(fmt.Sprintf(`[<https://reddit.com%s|reddit>] Likes: *%d*, [<%s|og image>]`, post.Permalink, post.Ups, post.Url_overridden_by_dest), "mrkdwn", ""))
+		if len(reg.FindAllString(imageUrl, 1)) > 0 {
+			var filePath string = tempFolder + reg.FindAllString(imageUrl, 1)[0]
+			utils.DownloadFile(imageUrl, filePath, false)
+			rc.ResizeImage(filePath)
+			imageUrl = strings.ReplaceAll(filePath, tempFolder, "")
+			mbarr = append(mbarr, sc.CreateImageBlock(urlPrefix+imageUrl, post.Title))
+			mbarr = append(mbarr, sc.CreateTextBlock(fmt.Sprintf(`[<https://reddit.com%s|reddit>] Likes: *%d*, [<%s|og image>]`, post.Permalink, post.Ups, post.Url_overridden_by_dest), "mrkdwn", ""))
+		} else {
+			mbarr = append(mbarr, sc.CreateImageBlock(post.Url_overridden_by_dest, post.Title))
+			mbarr = append(mbarr, sc.CreateTextBlock(fmt.Sprintf(`[<https://reddit.com%s|image>] Likes: *%d*`, post.Permalink, post.Ups), "mrkdwn", ""))
+		}
 	} else {
 		mbarr = append(mbarr, sc.CreateImageBlock(post.Url_overridden_by_dest, post.Title))
 		mbarr = append(mbarr, sc.CreateTextBlock(fmt.Sprintf(`[<https://reddit.com%s|image>] Likes: *%d*`, post.Permalink, post.Ups), "mrkdwn", ""))
