@@ -171,6 +171,7 @@ func TestRetrieveByCommand(t *testing.T) {
 
 func TestTest(t *testing.T) {
 	t.Logf("%+v\n", flag.Lookup("test.v") == nil) // not in test mode
+	t.Logf("%+v\n", flag.Arg(0))
 }
 
 func TestAutoRetrieveNew(t *testing.T) {

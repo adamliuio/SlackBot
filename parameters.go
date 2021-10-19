@@ -7,6 +7,8 @@ type Parameters struct {
 	AutoTwitterLeastRetweetLikes  int    `json:"AutoTwitterLeastRetweetLikes,omitempty"`
 	HNClassicDaysFromDate         int    `json:"HNClassicDaysFromDate,omitempty"`
 	LatestHNClassicDate           string `json:"LatestHNClassicDate,omitempty"`
+	Timezone                      string `json:"Timezone,omitempty"`
+	TimeFormat                    string `json:"TimeFormat,omitempty"`
 }
 
 var (
@@ -33,6 +35,8 @@ var (
 		"YouTubers":     "1229243949950201856",
 		"Writters":      "1286864227475447808",
 	}
+	IsLocal    bool
+	IsTestMode bool = false
 )
 
 const (

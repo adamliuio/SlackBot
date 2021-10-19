@@ -20,7 +20,7 @@ func TestServer(t *testing.T) {
 		if body, err = utils.HttpRequest("POST", nil, "http://127.0.0.1:8080/discord/hi", nil); err != nil {
 			log.Panic(err)
 		}
-		log.Println(string(body))
+		t.Log(string(body))
 	}()
 	wg.Wait()
 }

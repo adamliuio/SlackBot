@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -68,7 +67,7 @@ func (tc TwitterClient) LookUpTwitterUsers(ids []string, idType string) (respJso
 			log.Panic(err)
 		}
 	} else {
-		log.Fatalf("id type: %s is wrong.", idType)
+		utils.DealWithError(fmt.Errorf("id type: %s is wrong", idType))
 	}
 	return
 }
@@ -123,7 +122,7 @@ func (tc TwitterClient) AutoRetrieveNew() (err error) {
 				return
 			}
 		}
-		if flag.Lookup("test.v") != nil { // if in test mode, only go through 1 loop
+		if IsTestMode { // if in test mode, only go through 1 loop
 			break
 		}
 	}
@@ -328,7 +327,7 @@ func (tc TwitterClient) GetListContent(listName string) (tweets []Tweet, err err
 		return
 	}
 	_ = json.Unmarshal(respJson, &tweets)
-	if flag.Lookup("test.v") != nil { // if in test mode
+	if IsTestMode {
 		utils.WriteFile(respJson, "data-samples/list-statuses.json")
 	}
 	return

@@ -3,14 +3,13 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
-	"runtime"
+	"runtime/debug"
 	"strings"
 	"time"
 )
@@ -87,25 +86,17 @@ func (u Utils) DownloadFile(url, fn string, ignoreErr bool) {
 }
 
 func (u Utils) DealWithError(err error) {
-	var file, wddir string
-	var line int
-	var ok bool
-
-	if _, file, line, ok = runtime.Caller(1); !ok {
-		log.Fatalf("error when \"utils.DealWithError\" called from %s#%d\n", file, line)
-	}
-
+	var now, errMsg, wd string
 	var e error
-	if wddir, e = os.Getwd(); e != nil {
-		log.Fatalln(e)
+	if wd, e = os.Getwd(); e != nil {
+		log.Panic(e)
 	}
-	file = strings.ReplaceAll(file, wddir, ".")
-	log.Println(wddir)
-	var errFmt string = "Error: \"%s\" @%s"
-	if flag.Lookup("test.v") == nil && Hostname != "MacBook-Pro.local" { // if this is not in production mode & not on local computer
-		sc.SendPlainText(fmt.Sprintf(errFmt, err.Error(), file), os.Getenv("SlackWebHookUrlTest"))
+	now, _ = utils.TimeNow()
+	errMsg = fmt.Sprintf("%s\nerr: %s\ndetail: %s", now, err.Error(), strings.Replace(string(debug.Stack()), wd, ".", -1))
+	if IsTestMode && IsLocal {
+		log.Fatalln(errMsg)
 	} else {
-		log.Fatalf(errFmt, err.Error(), file)
+		sc.SendPlainText(errMsg, os.Getenv("SlackWebHookUrlTest"))
 	}
 }
 
@@ -133,4 +124,14 @@ func (u Utils) CheckUrl(url string) (finalUrl string, contentLength int64, err e
 	finalUrl = resp.Request.URL.String()
 	contentLength = resp.ContentLength
 	return
+}
+
+func (u Utils) TimeNow() (string, int64) {
+	var loc *time.Location
+	var err error
+	if loc, err = time.LoadLocation(Params.Timezone); err != nil {
+		panic(err)
+	}
+	var now time.Time = time.Now().In(loc)
+	return now.Format(Params.TimeFormat), now.Unix()
 }

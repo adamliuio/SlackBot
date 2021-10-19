@@ -6,7 +6,9 @@ import (
 	"log"
 	urlUtils "net/url"
 	"os"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -95,7 +97,7 @@ func (hn HNClient) RetrieveHNClassic() (results HNAlgoliaSearchResults, err erro
 		}
 		if hasQualified {
 			Params.LatestHNClassicDate = dayEnd.Format(layoutISO)
-			j, _ := json.Marshal(Params)
+			j, _ := json.MarshalIndent(Params, "", "    ")
 			utils.WriteFile(j, paramsFilename)
 			return
 		} else {
@@ -214,7 +216,7 @@ func (hn HNClient) RetrieveByCommand(storyTypeInfo string) (mbs MessageBlocks, e
 	var storyType string
 	var storiesRange []int
 
-	if storyType, storiesRange, err = regexStoryTypeRange(storyTypeInfo); err != nil { // parsing storyType & storiesRange
+	if storyType, storiesRange, err = hn.regexStoryTypeRange(storyTypeInfo); err != nil { // parsing storyType & storiesRange
 		mbs = MessageBlocks{Text: err.Error()}
 		return
 	}
@@ -225,6 +227,44 @@ func (hn HNClient) RetrieveByCommand(storyTypeInfo string) (mbs MessageBlocks, e
 		return
 	}
 	mbs, err = hn.formatData(storyTypeInfo, stories, false)
+	return
+}
+
+func (hn HNClient) regexStoryTypeRange(storyTypeInfo string) (storyType string, storyRange []int, err error) {
+
+	matchAll := regexp.MustCompile(`[\D\W]+\s\d+(-\d+)?`).MatchString(storyTypeInfo)  // match the format of the entire string
+	wordMatch := regexp.MustCompile(`[^\d\W]+`).FindAllStringIndex(storyTypeInfo, -1) // match words
+	numMatches := regexp.MustCompile(`\d+`).FindAllStringIndex(storyTypeInfo, -1)     // match numbers
+
+	if !matchAll {
+		err = fmt.Errorf(`command ("%s") wrong, should either be something like "/hn top 10" or "/hn top 10-20"`, storyTypeInfo)
+		return
+	}
+
+	storyType = storyTypeInfo[wordMatch[0][0]:wordMatch[0][1]]
+	storyRange = []int{0, 10}
+
+	if len(numMatches) == 1 { // if there's values in the string, which is separated by " "
+		var num string = storyTypeInfo[numMatches[0][0]:numMatches[0][1]]
+		storyRange[1], err = strconv.Atoi(num)
+		if err != nil {
+			utils.DealWithError(err)
+		}
+	} else if len(numMatches) == 2 {
+		var num string = storyTypeInfo[numMatches[0][0]:numMatches[0][1]]
+		storyRange[0], err = strconv.Atoi(num)
+		if err != nil {
+			utils.DealWithError(err)
+		}
+		num = storyTypeInfo[numMatches[1][0]:numMatches[1][1]]
+		storyRange[1], err = strconv.Atoi(num)
+		if err != nil {
+			utils.DealWithError(err)
+		}
+	} else {
+		err = fmt.Errorf(`the command ("%s") seems to have more or less than 2 numbers, the format should either be something like "/hn top 10" or "/hn top 10-20"`, storyTypeInfo)
+		return
+	}
 	return
 }
 
@@ -290,15 +330,15 @@ func (hn HNClient) getStoriesItems(newIdsList []int) (storiesItemsList []HNItem)
 			var ok bool
 			itemIntf, ok = m.Load(id)
 			if !ok {
-				log.Fatalf("id: %d is no ok, detail: %+v\n", id, item)
+				utils.DealWithError(fmt.Errorf("id: %d is no ok, detail: %+v", id, item))
 			}
 			var b []byte
 			var err error
 			if b, err = json.Marshal(itemIntf); err != nil {
-				log.Fatalln(err)
+				utils.DealWithError(err)
 			}
 			if err = json.Unmarshal(b, &item); err != nil {
-				log.Fatalln(err)
+				utils.DealWithError(err)
 			}
 
 			storiesItemsList = append(storiesItemsList, item)
@@ -324,7 +364,7 @@ func (hn HNClient) getStoriesIds(storyType string) (newIdsList []int, err error)
 	var url string = fmt.Sprintf(hn.StoriesUrlTmplt, storyType)
 	var body []byte
 	if body, err = utils.HttpRequest("GET", nil, url, nil); err != nil {
-		log.Fatalln(err)
+		utils.DealWithError(err)
 	}
 
 	if err = json.Unmarshal(body, &newIdsList); err != nil {

@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -156,18 +155,18 @@ func (sc SlackClient) sendText(msgBlocks MessageBlocks, url string) (err error) 
 
 func (sc SlackClient) SendBlocks(msgBlocks MessageBlocks, url string) (err error) {
 	var reqBody []byte
-	if flag.Lookup("test.v") == nil { // if this is not in test mode
+	if !IsTestMode {
 		reqBody, err = json.Marshal(msgBlocks)
-	} else { // if is test mode
+	} else {
 		reqBody, err = json.MarshalIndent(msgBlocks, "", "    ")
 		log.Println(string(reqBody))
 	}
 	if err != nil {
 		return
 	}
-	if flag.Lookup("test.v") == nil { // if this is not in test mode
+	if !IsTestMode {
 		return sc.SendBytes(reqBody, url, nil)
-	} else { // if is test mode
+	} else {
 		return sc.SendBytes(reqBody, os.Getenv("SlackWebHookUrlTest"), nil)
 	}
 }

@@ -218,12 +218,12 @@ func (rc RedditClient) ResizeImage(filePath string) {
 	var srcImage image.Image
 
 	if srcImage, err = imaging.Open(filePath); err != nil {
-		log.Fatalf("failed to open image: %v", err)
+		utils.DealWithError(fmt.Errorf("failed to open image: %v", err))
 	}
 	var dstImage800 image.Image = imaging.Resize(srcImage, 800, 0, imaging.Lanczos)
 
 	if err = imaging.Save(dstImage800, filePath); err != nil {
-		log.Fatalf("failed to save image: %v", err)
+		utils.DealWithError(fmt.Errorf("failed to save image: %v", err))
 	}
 }
 
