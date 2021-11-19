@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	urlUtils "net/url"
 	"os"
 	"regexp"
@@ -378,10 +377,10 @@ func (hn HNClient) getItemById(formatStr string, id int) (item HNItem) {
 	var body []byte
 	var err error
 	if body, err = utils.HttpRequest("GET", nil, url, nil); err != nil {
-		log.Panic(err)
+		utils.DealWithError(err)
 	}
 	if err = json.Unmarshal(body, &item); err != nil {
-		log.Panic(err)
+		utils.DealWithError(err)
 	}
 	return
 }
