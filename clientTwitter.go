@@ -166,6 +166,7 @@ func (tc TwitterClient) retrieveTweets(listName string, leastLikes int, saveIDs 
 
 	var savedTweetIds []string
 	json.Unmarshal(utils.ReadFile(twitterFilename), &savedTweetIds)
+	savedTweetIds = savedTweetIds[300:]
 
 	// check if tweets are qualified
 	var listTweet Tweet

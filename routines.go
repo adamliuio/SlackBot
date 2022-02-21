@@ -17,7 +17,7 @@ func (rou Routines) StartAll() {
 		for {
 			fmt.Println(time.Now().Format("2006-01-02 15:04:05"), ":", "Auto retrieving new posts... ")
 			go hn.AutoRetrieveNew() // hacker news
-			go rc.AutoRetrieveNew() // reddit
+			// go rc.AutoRetrieveNew() // reddit
 			go tc.AutoRetrieveNew() // twitter
 			if i%12 == 0 {          // run every 12 hours
 				go xk.AutoRetrieveNew() // xkcd

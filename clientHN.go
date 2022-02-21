@@ -145,6 +145,7 @@ func (hn HNClient) _retrieveNew(autoHNPostType string) (i int, err error) {
 
 	var savedStoriesIds []int
 	_ = json.Unmarshal(utils.ReadFile(hnFilename), &savedStoriesIds)
+	savedStoriesIds = savedStoriesIds[200:]
 
 	var newIdsList []int
 	var _idsList []int
