@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 )
@@ -48,7 +49,7 @@ func TestJson(t *testing.T) {
 
 func TestGetHNItemById(t *testing.T) {
 	var id int = 28621288
-	var hn HNItem = hn.getItemById(hn.ItemUrlTmplt, id)
+	var hn HNItem = hn.getItemById(hn.ItemUrlTmplt, fmt.Sprint(id))
 	t.Logf("%+v\n", hn)
 }
 

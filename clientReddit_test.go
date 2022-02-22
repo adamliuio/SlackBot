@@ -12,6 +12,8 @@ import (
 	"github.com/disintegration/imaging"
 )
 
+var rc RedditClient
+
 func TestRedditAutoRetrieveNew(t *testing.T) {
 	if err := rc.AutoRetrieveNew(); err != nil {
 		log.Panicln(err)

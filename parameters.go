@@ -12,16 +12,16 @@ type Parameters struct {
 }
 
 var (
-	rc     RedditClient
 	sc     SlackClient
 	tc     TwitterClient
 	dc     DiscordClient
 	xk     XKCDClient
+	db     Database
 	Params Parameters
 	hn     = HNClient{
-		ItemUrlTmplt:    "https://hacker-news.firebaseio.com/v0/item/%d.json",                // "https://hacker-news.firebaseio.com/v0/item/8863.json?print=pretty"
-		StoriesUrlTmplt: "https://hacker-news.firebaseio.com/v0/%sstories.json?print=pretty", // for finding top/new/best stories
-		PageUrlTmplt:    "https://news.ycombinator.com/item?id=%d",                           // link to the HN page of this story
+		ItemUrlTmplt:    "https://hacker-news.firebaseio.com/v0/item/%s.json",   // "https://hacker-news.firebaseio.com/v0/item/8863.json?print=pretty"
+		StoriesUrlTmplt: "https://hacker-news.firebaseio.com/v0/%sstories.json", // for finding top/new/best stories
+		PageUrlTmplt:    "https://news.ycombinator.com/item?id=%d",              // link to the HN page of this story
 	}
 	utils      Utils
 	rou        Routines

@@ -21,6 +21,7 @@ func init() {
 	}
 	IsLocal = Hostname == "MacBook-Pro.local"         // checking if the app in local
 	IsTestMode = strings.Contains(os.Args[0], "test") // checking if it's in test mode
+	db.Init()
 }
 
 func main() {

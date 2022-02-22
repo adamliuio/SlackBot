@@ -143,32 +143,23 @@ func (hn HNClient) _retrieveNew(autoHNPostType string) (i int, err error) {
 
 	var leastScore int = Params.AutoHNRenewLeastScore
 
-	var savedStoriesIds []int
-	_ = json.Unmarshal(utils.ReadFile(hnFilename), &savedStoriesIds)
-	savedStoriesIds = savedStoriesIds[200:]
-
-	var newIdsList []int
-	var _idsList []int
+	var newIdsList []string
+	var _idsList []string
 	if _idsList, err = hn.getStoriesIds(autoHNPostType); err != nil { // get 500 newest ids
 		return
 	}
 
 	for _, newId := range _idsList {
-		var exist bool = false
-		for _, existId := range savedStoriesIds {
-			if newId == existId {
-				exist = true
-				break
-			}
-		}
-		if !exist {
-			newIdsList = append(newIdsList, newId)
+		if db.Query(newId) == "HackerNews" { // if exists
+			continue
+		} else {
+			db.InsertRows([][]string{{newId, "HackerNews"}})
 		}
 	}
 
 	// turn newIdsList into batches because it's too long
 	var storiesLen int = len(newIdsList)
-	var newIdsListBatches [][]int
+	var newIdsListBatches [][]string
 	for i := 0; i < storiesLen/100; i++ { // turn newIdsList into batches
 		newIdsListBatches = append(newIdsListBatches, newIdsList[i*100:(i+1)*100])
 	}
@@ -195,9 +186,9 @@ func (hn HNClient) _retrieveNew(autoHNPostType string) (i int, err error) {
 	storiesItemsList = storiesItemsList[:i]
 
 	// save json
-	for i, item = range storiesItemsList {
-		savedStoriesIds = append(savedStoriesIds, item.Id)
-	}
+	// for i, item = range storiesItemsList {
+	// 	savedStoriesIds = append(savedStoriesIds, item.Id)
+	// }
 	var mbs MessageBlocks
 	for i = 0; i < len(storiesItemsList); i++ {
 		if mbs, err = hn.formatData("", storiesItemsList[i:i+1], true); err != nil {
@@ -207,8 +198,8 @@ func (hn HNClient) _retrieveNew(autoHNPostType string) (i int, err error) {
 			return
 		}
 	}
-	j, _ := json.Marshal(savedStoriesIds)
-	utils.WriteFile(j, hnFilename)
+	// j, _ := json.Marshal(savedStoriesIds)
+	// utils.WriteFile(j, hnFilename)
 	return
 }
 
@@ -274,7 +265,7 @@ func (hn HNClient) getStories(storyType string, storiesRange []int) (storiesItem
 		err = fmt.Errorf(`the <story type> "%s" you put in is invalid, should be one if <top/new/best>`, storyType)
 		return
 	}
-	var newIdsList []int
+	var newIdsList []string
 	if newIdsList, err = hn.getStoriesIds(storyType); err != nil {
 		return
 	}
@@ -317,20 +308,21 @@ func (hn HNClient) parseHostname(hostname string) string {
 	return strings.ReplaceAll(u.Hostname(), "www.", "")
 }
 
-func (hn HNClient) getStoriesItems(newIdsList []int) (storiesItemsList []HNItem) {
+func (hn HNClient) getStoriesItems(newIdsList []string) (storiesItemsList []HNItem) {
 	var m sync.Map
 	storiesItemsList = []HNItem{}
 
 	// start := time.Now()
 	defer func() { // turn m sync.Map into storiesItemsList after the process is done
 		// log.Println("Execution Time: ", time.Since(start))
-		for _, id := range newIdsList {
+		var id string
+		for _, id = range newIdsList {
 			var item HNItem
 			var itemIntf interface{}
 			var ok bool
 			itemIntf, ok = m.Load(id)
 			if !ok {
-				utils.DealWithError(fmt.Errorf("id: %d is no ok, detail: %+v", id, item))
+				utils.DealWithError(fmt.Errorf("id: %s is no ok, detail: %+v", id, item))
 			}
 			var b []byte
 			var err error
@@ -347,9 +339,10 @@ func (hn HNClient) getStoriesItems(newIdsList []int) (storiesItemsList []HNItem)
 
 	// starting concurrent processes that retrieve hn news items simultaneously
 	wg := sync.WaitGroup{}
-	for _, id := range newIdsList {
+	var id string
+	for _, id = range newIdsList {
 		wg.Add(1)
-		go func(id int) {
+		go func(id string) {
 			var hn HNItem = hn.getItemById(hn.ItemUrlTmplt, id)
 			m.Store(id, hn)
 			wg.Done()
@@ -359,7 +352,7 @@ func (hn HNClient) getStoriesItems(newIdsList []int) (storiesItemsList []HNItem)
 	return
 }
 
-func (hn HNClient) getStoriesIds(storyType string) (newIdsList []int, err error) {
+func (hn HNClient) getStoriesIds(storyType string) (newIdsList []string, err error) {
 	// top [500], new [500], best [200]
 	var url string = fmt.Sprintf(hn.StoriesUrlTmplt, storyType)
 	var body []byte
@@ -367,13 +360,17 @@ func (hn HNClient) getStoriesIds(storyType string) (newIdsList []int, err error)
 		utils.DealWithError(err)
 	}
 
-	if err = json.Unmarshal(body, &newIdsList); err != nil {
+	var lst []int
+	if err = json.Unmarshal(body, &lst); err != nil {
 		return
+	}
+	for _, id := range lst {
+		newIdsList = append(newIdsList, fmt.Sprint(id))
 	}
 	return
 }
 
-func (hn HNClient) getItemById(formatStr string, id int) (item HNItem) {
+func (hn HNClient) getItemById(formatStr string, id string) (item HNItem) {
 	var url string = fmt.Sprintf(formatStr, id)
 	var body []byte
 	var err error

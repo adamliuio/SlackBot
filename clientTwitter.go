@@ -105,7 +105,7 @@ func (tc TwitterClient) AutoRetrieveNew() (err error) {
 	for listName := range TweetLists {
 		var leastOriginalLikes int = Params.AutoTwitterLeastOriginalLikes
 		var mbList [][]MessageBlock
-		mbList, err = tc.retrieveTweets(listName, leastOriginalLikes, true)
+		mbList, err = tc.retrieveTweets(listName, leastOriginalLikes)
 		if err != nil {
 			return
 		}
@@ -137,7 +137,7 @@ func (tc TwitterClient) RetrieveByCommand(cmdTxt string) (mbs MessageBlocks, err
 	numStr = fields[1]
 	leastLikes, _ = strconv.Atoi(numStr)
 	var mbList [][]MessageBlock
-	mbList, err = tc.retrieveTweets(listName, leastLikes, false)
+	mbList, err = tc.retrieveTweets(listName, leastLikes)
 	if err != nil {
 		return
 	}
@@ -158,32 +158,23 @@ func (tc TwitterClient) RetrieveByCommand(cmdTxt string) (mbs MessageBlocks, err
 	return
 }
 
-func (tc TwitterClient) retrieveTweets(listName string, leastLikes int, saveIDs bool) (mbList [][]MessageBlock, err error) {
+func (tc TwitterClient) retrieveTweets(listName string, leastLikes int) (mbList [][]MessageBlock, err error) {
 	var listTweets, qualifiedListTweets []Tweet
 	if listTweets, err = tc.GetListContent(listName); err != nil {
 		return
 	}
-
-	var savedTweetIds []string
-	json.Unmarshal(utils.ReadFile(twitterFilename), &savedTweetIds)
-	savedTweetIds = savedTweetIds[300:]
 
 	// check if tweets are qualified
 	var listTweet Tweet
 	for _, listTweet = range listTweets {
 		var retweet *Tweet = listTweet.Retweeted_Status
 		var quoted *Tweet = listTweet.Quoted_Status
-		var exist bool = false
 		var leastRetweetLikes int = Params.AutoTwitterLeastOriginalLikes
 		if listTweet.Favorite_Count >= leastLikes || (retweet != nil && retweet.Favorite_Count >= leastRetweetLikes) || (quoted != nil && quoted.Favorite_Count >= leastRetweetLikes) {
-			for _, savedId := range savedTweetIds {
-				if listTweet.Id_Str == savedId {
-					exist = true
-					break
-				}
-			}
-			if !exist {
-				savedTweetIds = append(savedTweetIds, listTweet.Id_Str)
+			if db.Query(listTweet.Id_Str) == "Twitter" { // if exists
+				continue
+			} else {
+				db.InsertRows([][]string{{listTweet.Id_Str, "Twitter"}})
 				qualifiedListTweets = append(qualifiedListTweets, listTweet)
 			}
 		}
@@ -195,11 +186,6 @@ func (tc TwitterClient) retrieveTweets(listName string, leastLikes int, saveIDs 
 			return
 		}
 		mbList = append(mbList, mbarr)
-	}
-	// save json
-	if saveIDs {
-		j, _ := json.Marshal(savedTweetIds)
-		utils.WriteFile(j, twitterFilename)
 	}
 
 	return
