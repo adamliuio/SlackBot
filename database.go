@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	sqliteFile    string = "./data/ids.db"
+	sqliteFile    string = "file:./data/ids.db?cache=shared&_journal=WAL"
 	CreateDBQuery string = `
 	CREATE TABLE IDs (
 		PostId varchar(20) NOT NULL PRIMARY KEY,
@@ -31,7 +31,9 @@ func (db *Database) Init() {
 	if db.sqlDB, err = sql.Open("sqlite3", sqliteFile); err != nil {
 		log.Fatalln(err)
 	}
-	// defer sqlDB.Close()
+	defer db.sqlDB.Close()
+
+	db.ReturnAllRecords()
 }
 
 func (db Database) CreateUserProfileTable(createDBQuery string) {
@@ -42,9 +44,15 @@ func (db Database) CreateUserProfileTable(createDBQuery string) {
 	}
 }
 
-func (db Database) InsertRows(insertRows [][]string) (err error) {
+func (db Database) InsertRows(rows [][]string) (err error) {
+	var _sqlDB *sql.DB
+	if _sqlDB, err = sql.Open("sqlite3", sqliteFile); err != nil {
+		log.Fatalln(err)
+	}
+	defer _sqlDB.Close()
+
 	var tx *sql.Tx
-	tx, err = db.sqlDB.Begin()
+	tx, err = _sqlDB.Begin()
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -56,10 +64,10 @@ func (db Database) InsertRows(insertRows [][]string) (err error) {
 	}
 	defer stmt.Close()
 
-	for _, insertRow := range insertRows {
-		_, err = stmt.Exec(insertRow[0], insertRow[1])
+	for _, row := range rows {
+		_, err = stmt.Exec(row[0], row[1])
 		if err != nil {
-			return
+			log.Fatalln(err)
 		}
 	}
 	return
@@ -91,8 +99,14 @@ func (db Database) ReturnAllRecords() (records [][]string, err error) {
 
 func (db Database) Query(postId string) (platform string) {
 	var err error
+	var _sqlDB *sql.DB
+	if _sqlDB, err = sql.Open("sqlite3", sqliteFile); err != nil {
+		log.Fatalln(err)
+	}
+	defer _sqlDB.Close()
+
 	var stmt *sql.Stmt
-	stmt, err = db.sqlDB.Prepare("SELECT * FROM IDs WHERE PostId = ?")
+	stmt, err = _sqlDB.Prepare("SELECT * FROM IDs WHERE PostId = ?")
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -104,25 +118,31 @@ func (db Database) Query(postId string) (platform string) {
 	if err != nil && err.Error() != "sql: no rows in result set" {
 		log.Fatalln(err)
 	}
-	// log.Println(id, plat)
+	log.Println(id, platform)
 	_ = id
 	return
 }
 
 func (db Database) DeleteFrom() {
 	var err error
-	_, err = db.sqlDB.Exec("delete from foo")
+	var _sqlDB *sql.DB
+	if _sqlDB, err = sql.Open("sqlite3", sqliteFile); err != nil {
+		log.Fatalln(err)
+	}
+	defer _sqlDB.Close()
+
+	_, err = _sqlDB.Exec("delete from foo")
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	_, err = db.sqlDB.Exec("insert into foo(id, name) values(1, 'foo'), (2, 'bar'), (3, 'baz')")
+	_, err = _sqlDB.Exec("insert into foo(id, name) values(1, 'foo'), (2, 'bar'), (3, 'baz')")
 	if err != nil {
 		log.Fatalln(err)
 	}
 
 	var rows *sql.Rows
-	rows, err = db.sqlDB.Query("select id, name from foo")
+	rows, err = _sqlDB.Query("select id, name from foo")
 	if err != nil {
 		log.Fatalln(err)
 	}

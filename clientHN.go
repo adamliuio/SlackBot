@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	urlUtils "net/url"
 	"os"
 	"regexp"
@@ -129,9 +130,10 @@ func (hn HNClient) classicsFormatData(results HNAlgoliaSearchResults) (err error
 func (hn HNClient) AutoRetrieveNew() (err error) {
 	var str string = "found "
 	for _, s := range []string{"top", "new", "best"} {
+		fmt.Printf("Retrieving %s HN stories.\n", s)
 		var i int
-		if i, err = hn._retrieveNew(s); err != nil {
-			return
+		if i, err = hn.retrieveNew(s); err != nil {
+			log.Fatalln(err)
 		}
 		str = str + fmt.Sprintf("|%d %s| ", i, s)
 	}
@@ -139,22 +141,13 @@ func (hn HNClient) AutoRetrieveNew() (err error) {
 	return
 }
 
-func (hn HNClient) _retrieveNew(autoHNPostType string) (i int, err error) {
+func (hn HNClient) retrieveNew(autoHNPostType string) (i int, err error) {
 
 	var leastScore int = Params.AutoHNRenewLeastScore
 
 	var newIdsList []string
-	var _idsList []string
-	if _idsList, err = hn.getStoriesIds(autoHNPostType); err != nil { // get 500 newest ids
+	if newIdsList, err = hn.getStoriesIds(autoHNPostType); err != nil { // get 500 newest ids
 		return
-	}
-
-	for _, newId := range _idsList {
-		if db.Query(newId) == "HackerNews" { // if exists
-			continue
-		} else {
-			db.InsertRows([][]string{{newId, "HackerNews"}})
-		}
 	}
 
 	// turn newIdsList into batches because it's too long
@@ -169,21 +162,60 @@ func (hn HNClient) _retrieveNew(autoHNPostType string) (i int, err error) {
 	var storiesItemsList []HNItem
 	for _, idsBatch := range newIdsListBatches {
 		storiesItemsList = append(storiesItemsList, hn.getStoriesItems(idsBatch)...)
-	}
+		var item HNItem
+		for _, item = range storiesItemsList {
+			if item.Score >= leastScore {
+				var newId string = fmt.Sprint(item.Id)
+				if db.Query(newId) == "HackerNews" { // if exists
+					continue
+				} else {
+					// log.Fatalln("doesn't equal HackerNews")
+					db.InsertRows([][]string{{newId, "HackerNews"}})
+					log.Fatalln(db.Query(newId))
 
-	// sort "storiesItemsList" base on scores
-	sort.Slice(storiesItemsList, func(i, j int) bool {
-		return storiesItemsList[i].Score > storiesItemsList[j].Score
-	})
-
-	// eliminate stories that scored less than 350
-	var item HNItem
-	for i, item = range storiesItemsList {
-		if item.Score < leastScore {
-			break
+					var records [][]string
+					if records, err = db.ReturnAllRecords(); err != nil {
+						log.Fatalln(err)
+					}
+					for _, record := range records {
+						log.Printf("%+v\n", record)
+					}
+					log.Fatalln("Fuck!")
+				}
+			}
 		}
 	}
-	storiesItemsList = storiesItemsList[:i]
+
+	// // sort "storiesItemsList" base on scores
+	// sort.Slice(storiesItemsList, func(i, j int) bool {
+	// 	return storiesItemsList[i].Score > storiesItemsList[j].Score
+	// })
+
+	// // eliminate stories that scored less than 350
+	// var item HNItem
+	// for i, item = range storiesItemsList {
+	// 	if item.Score < leastScore {
+	// 		break
+	// 	}
+	// }
+	// storiesItemsList = storiesItemsList[:i]
+
+	// for _, item = range storiesItemsList {
+	// 	var newId string = fmt.Sprint(item.Id)
+	// 	if db.Query(newId) == "HackerNews" { // if exists
+	// 		continue
+	// 	} else {
+	// 		db.InsertRows([][]string{{newId, "HackerNews"}})
+	// 	}
+	// }
+	var records [][]string
+	if records, err = db.ReturnAllRecords(); err != nil {
+		log.Fatalln(err)
+	}
+	for _, record := range records {
+		log.Printf("%+v\n", record)
+	}
+	log.Fatalln(len(storiesItemsList))
 
 	// save json
 	// for i, item = range storiesItemsList {
@@ -269,7 +301,7 @@ func (hn HNClient) getStories(storyType string, storiesRange []int) (storiesItem
 	if newIdsList, err = hn.getStoriesIds(storyType); err != nil {
 		return
 	}
-	storiesItemsList = hn.getStoriesItems(newIdsList)
+	storiesItemsList = hn.getStoriesItems(newIdsList) // retrieve the actual data of each item
 	sort.Slice(storiesItemsList, func(i, j int) bool {
 		return storiesItemsList[i].Score > storiesItemsList[j].Score
 	})
