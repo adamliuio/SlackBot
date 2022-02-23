@@ -138,6 +138,7 @@ func (hn HNClient) AutoRetrieveNew() (err error) {
 		str = str + fmt.Sprintf("|%d %s| ", i, s)
 	}
 	fmt.Println(str + "HN stories.")
+	sc.SendPlainText(fmt.Sprintf("Sent %s HN stories.", str), os.Getenv("SlackWebHookUrlTest"))
 	return
 }
 

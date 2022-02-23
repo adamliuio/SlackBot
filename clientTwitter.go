@@ -102,6 +102,7 @@ func (tc TwitterClient) oauth1Request(url string) (body []byte) {
 }
 
 func (tc TwitterClient) AutoRetrieveNew() (err error) {
+	var totalTweets int
 	for listName := range TweetLists {
 		var leastOriginalLikes int = Params.AutoTwitterLeastOriginalLikes
 		var mbList [][]MessageBlock
@@ -109,6 +110,7 @@ func (tc TwitterClient) AutoRetrieveNew() (err error) {
 		if err != nil {
 			return
 		}
+		totalTweets += len(mbList)
 		var i int
 		var mb []MessageBlock
 		for i, mb = range mbList {
@@ -126,6 +128,7 @@ func (tc TwitterClient) AutoRetrieveNew() (err error) {
 			break
 		}
 	}
+	sc.SendPlainText(fmt.Sprintf("Sent %d tweets.", totalTweets), os.Getenv("SlackWebHookUrlTest"))
 	return
 }
 
