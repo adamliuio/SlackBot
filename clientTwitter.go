@@ -166,18 +166,23 @@ func (tc TwitterClient) retrieveTweets(listName string, leastLikes int) (mbList 
 
 	// check if tweets are qualified
 	var listTweet Tweet
+	var qualifiedSavedItems []SavedItem
 	for _, listTweet = range listTweets {
 		var retweet *Tweet = listTweet.Retweeted_Status
 		var quoted *Tweet = listTweet.Quoted_Status
 		var leastRetweetLikes int = Params.AutoTwitterLeastOriginalLikes
-		if listTweet.Favorite_Count >= leastLikes || (retweet != nil && retweet.Favorite_Count >= leastRetweetLikes) || (quoted != nil && quoted.Favorite_Count >= leastRetweetLikes) {
-			if db.Query(listTweet.Id_Str) == "Twitter" { // if exists
+		if listTweet.Favorite_Count >= leastLikes || (retweet != nil && retweet.Favorite_Count >= leastRetweetLikes) || (quoted != nil && quoted.Favorite_Count >= leastRetweetLikes) { // if tweet is qualified
+			if db.QueryRow(listTweet.Id_Str).Platform == "Twitter" { // if exists
 				continue
 			} else {
-				db.InsertRows([][]string{{listTweet.Id_Str, "Twitter"}})
+				qualifiedSavedItems = append(qualifiedSavedItems, SavedItem{Id: listTweet.Id_Str, Platform: "Twitter"})
+				// db.InsertRow(SavedItem{Id: listTweet.Id_Str, Platform: "Twitter"})
 				qualifiedListTweets = append(qualifiedListTweets, listTweet)
 			}
 		}
+	}
+	if len(qualifiedSavedItems) > 0 {
+		db.InsertRows(qualifiedSavedItems)
 	}
 
 	var mbarr []MessageBlock

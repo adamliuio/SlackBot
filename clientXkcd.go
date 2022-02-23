@@ -23,12 +23,14 @@ type xkcdJSON struct {
 	Day        string `json:"day,omitempty"`
 }
 
+// func init() {
+// 	db.UpdateXkcd()
+// }
+
 func (xk XKCDClient) AutoRetrieveNew() (err error) {
-	var lastID int
-	_ = json.Unmarshal(utils.ReadFile(xkcdFilename), &lastID)
-	lastID++
+	var item SavedItem = db.UpdateXkcd()
 	var mbs MessageBlocks
-	mbs, err = xk.GetStoryById(fmt.Sprintf("%d", lastID))
+	mbs, err = xk.GetStoryById(item.Id)
 	if err != nil {
 		return
 	}
@@ -36,8 +38,6 @@ func (xk XKCDClient) AutoRetrieveNew() (err error) {
 	if err != nil {
 		return
 	}
-	j, _ := json.Marshal(lastID)
-	utils.WriteFile(j, xkcdFilename)
 	return
 }
 

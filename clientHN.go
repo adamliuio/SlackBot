@@ -133,7 +133,7 @@ func (hn HNClient) AutoRetrieveNew() (err error) {
 		fmt.Printf("Retrieving %s HN stories.\n", s)
 		var i int
 		if i, err = hn.retrieveNew(s); err != nil {
-			log.Fatalln(err)
+			log.Panicln(err)
 		}
 		str = str + fmt.Sprintf("|%d %s| ", i, s)
 	}
@@ -150,7 +150,7 @@ func (hn HNClient) retrieveNew(autoHNPostType string) (i int, err error) {
 		return
 	}
 
-	// turn newIdsList into batches because it's too long
+	// turn newIdsList into batches because it's too long multi-threading
 	var storiesLen int = len(newIdsList)
 	var newIdsListBatches [][]string
 	for i := 0; i < storiesLen/100; i++ { // turn newIdsList into batches
@@ -158,69 +158,30 @@ func (hn HNClient) retrieveNew(autoHNPostType string) (i int, err error) {
 	}
 	newIdsListBatches = append(newIdsListBatches, newIdsList[storiesLen-storiesLen%100:])
 
-	// get all the story items
 	var storiesItemsList []HNItem
+	var qualifiedSavedItems []SavedItem
+
 	for _, idsBatch := range newIdsListBatches {
-		storiesItemsList = append(storiesItemsList, hn.getStoriesItems(idsBatch)...)
+		var batchItemsList []HNItem = hn.getStoriesItems(idsBatch) // get items of this batch base on batch ids
+
 		var item HNItem
-		for _, item = range storiesItemsList {
-			if item.Score >= leastScore {
+		for _, item = range batchItemsList {
+			if item.Score >= leastScore { // only deal with qualified items
 				var newId string = fmt.Sprint(item.Id)
-				if db.Query(newId) == "HackerNews" { // if exists
+				var returnedItem SavedItem = db.QueryRow(newId) // check if exists
+				if returnedItem.Platform == "HackerNews" {      // if exists
 					continue
 				} else {
-					// log.Fatalln("doesn't equal HackerNews")
-					db.InsertRows([][]string{{newId, "HackerNews"}})
-					log.Fatalln(db.Query(newId))
-
-					var records [][]string
-					if records, err = db.ReturnAllRecords(); err != nil {
-						log.Fatalln(err)
-					}
-					for _, record := range records {
-						log.Printf("%+v\n", record)
-					}
-					log.Fatalln("Fuck!")
+					storiesItemsList = append(storiesItemsList, item)
+					qualifiedSavedItems = append(qualifiedSavedItems, SavedItem{Id: newId, Platform: "HackerNews"})
 				}
 			}
 		}
 	}
-
-	// // sort "storiesItemsList" base on scores
-	// sort.Slice(storiesItemsList, func(i, j int) bool {
-	// 	return storiesItemsList[i].Score > storiesItemsList[j].Score
-	// })
-
-	// // eliminate stories that scored less than 350
-	// var item HNItem
-	// for i, item = range storiesItemsList {
-	// 	if item.Score < leastScore {
-	// 		break
-	// 	}
-	// }
-	// storiesItemsList = storiesItemsList[:i]
-
-	// for _, item = range storiesItemsList {
-	// 	var newId string = fmt.Sprint(item.Id)
-	// 	if db.Query(newId) == "HackerNews" { // if exists
-	// 		continue
-	// 	} else {
-	// 		db.InsertRows([][]string{{newId, "HackerNews"}})
-	// 	}
-	// }
-	var records [][]string
-	if records, err = db.ReturnAllRecords(); err != nil {
-		log.Fatalln(err)
+	if len(qualifiedSavedItems) > 0 {
+		db.InsertRows(qualifiedSavedItems)
 	}
-	for _, record := range records {
-		log.Printf("%+v\n", record)
-	}
-	log.Fatalln(len(storiesItemsList))
 
-	// save json
-	// for i, item = range storiesItemsList {
-	// 	savedStoriesIds = append(savedStoriesIds, item.Id)
-	// }
 	var mbs MessageBlocks
 	for i = 0; i < len(storiesItemsList); i++ {
 		if mbs, err = hn.formatData("", storiesItemsList[i:i+1], true); err != nil {
@@ -230,8 +191,6 @@ func (hn HNClient) retrieveNew(autoHNPostType string) (i int, err error) {
 			return
 		}
 	}
-	// j, _ := json.Marshal(savedStoriesIds)
-	// utils.WriteFile(j, hnFilename)
 	return
 }
 
