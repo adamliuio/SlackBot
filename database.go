@@ -104,6 +104,8 @@ func (db Database) UpdateXkcd() (item SavedItem) {
 	item = SavedItem{}
 	// log.Println(&item)
 	var result *gorm.DB = db.gormDB.First(&item, "Platform = ?", "xkcd")
+	// log.Printf("item: %+v\n", item)
+	// log.Printf("result: %+v\n", result)
 	if result.Error != nil {
 		if result.Error.Error() == "record not found" {
 			log.Printf("result: %+v\n", result.Error.Error())
@@ -118,7 +120,13 @@ func (db Database) UpdateXkcd() (item SavedItem) {
 		var id int
 		id, _ = strconv.Atoi(item.Id)
 		item.Id = fmt.Sprint(id + 1)
-		db.gormDB.Save(&item) // update id
+		result = db.gormDB.Save(&item) // update id
+		// log.Printf("result: %+v\n", result)
+
+		var item_ SavedItem
+		result = db.gormDB.First(&item_, "Platform = ?", "xkcd")
+		// log.Printf("item: %+v\n", item)
+		// log.Printf("result: %+v\n", result)
 	}
 	// log.Println(result.RowsAffected)
 	// _ = result

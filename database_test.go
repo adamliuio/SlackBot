@@ -10,3 +10,10 @@ func TestAllDB(t *testing.T) {
 		t.Log(item)
 	}
 }
+
+func TestUpdateXkcd(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		var item SavedItem = db.UpdateXkcd()
+		t.Logf("item: %+v\n", item)
+	}
+}
